@@ -27,11 +27,11 @@ void printMatrix (Matrix &l);
 void printfloat2Darray ( float a[10][10]);
 int mapXID (Matrix &l , int channum);
 int mapYID (Matrix &l , int channum);
-bool pmtsideveto (Matrix &l , int a, int b, int side, int n);
-bool cubeveto (Matrix &l , int x, int y, int z, int n);
+bool pmtsideveto (Matrix &l , int a, int b, double c,int side, int n);
+bool cubeveto (Matrix &l , int x, int y, int z, double c,int n);
 vector<double> pulsePSDProcess (vector<int>&l,int push);
 int timedif (int timebegin, int timeend);
-bool twosideveto (Matrix &l , int x, int y, int z, int n);
+bool twosideveto (Matrix &l , int x, int y, int z,double c, int n);
 bool noiseveto (Matrix &l , int x, int y, int n);
 int mapXIDtrig (Matrix &l , int ch);
 int mapYIDtrig (Matrix &l , int ch);
@@ -565,29 +565,29 @@ bool noiseveto (Matrix &l , int x, int y, int n)
 	
 }
 
-bool cubeveto (Matrix &l , int x, int y, int z, int n)
+bool cubeveto (Matrix &l , int x, int y, int z, double c, int n)
 {
 	bool eventveto=false;
-	bool sideone=pmtsideveto(l,x,y,0,n);
-	bool sidetwo=pmtsideveto(l,x,z,1,n);
-	bool sidethree=pmtsideveto(l,z,y,2,n);
+	bool sideone=pmtsideveto(l,x,y,c,0,n);
+	bool sidetwo=pmtsideveto(l,x,z,c,1,n);
+	bool sidethree=pmtsideveto(l,z,y,c,2,n);
 	if (sideone || sidethree || sidetwo)	
 		eventveto=true;
 	return eventveto;
 }
 
-bool twosideveto (Matrix &l , int x, int y, int z, int n)
+bool twosideveto (Matrix &l , int x, int y, int z,double c, int n)
 {
 	bool eventveto=false;
-	bool sideone=pmtsideveto(l,x,y,0,n);
-	bool sidethree=pmtsideveto(l,z,y,2,n);
+	bool sideone=pmtsideveto(l,x,y,c,0,n);
+	bool sidethree=pmtsideveto(l,z,y,c,2,n);
 	if (sideone || sidethree)	
 		eventveto=true;
 	return eventveto;
 }
 
 
-bool pmtsideveto (Matrix &l , int a, int b, int side, int n)
+bool pmtsideveto (Matrix &l , int a, int b, double c, int side, int n)
 {
 	bool eventveto=false;
 
@@ -630,7 +630,7 @@ bool pmtsideveto (Matrix &l , int a, int b, int side, int n)
 			
 			if (i!=yid || j!=xid)
 			{		
-				if (l[i+10*n][j]>l[yid+n*10][xid])
+				if (l[i+10*n][j]>l[yid+n*10][xid]*c)
 				{
 					eventveto=true;
 					//cout << "veto "<<testchan << "\t" << trigchan<<"\t" << l[yid+n*10][xid] <<endl;

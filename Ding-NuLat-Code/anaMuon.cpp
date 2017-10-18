@@ -424,6 +424,9 @@ int main(int argc, char* argv[])
 			214	215	216	217	200	999	230	231	004	999
 		*/
 		int xidMuon, yidMuon, zidMuon;
+                double fracVeto=0.;
+                cout << "input factor for veto" << endl;
+		cin >> fracVeto;	
 		string MapOption;
 		int faceveto;
 		cout << "input xid for Muon event" << endl;
@@ -454,9 +457,9 @@ int main(int argc, char* argv[])
 			{
 				//cout << eventID[i] << "Muon 3 data"<< endl;
 				if (faceveto==2)
-	 			vetoMuon=twosideveto(energyMuon, xidMuon,yidMuon,zidMuon,i);
+	 			vetoMuon=twosideveto(energyMuon, xidMuon,yidMuon,zidMuon,fracVeto,i);
 				else
-				vetoMuon=cubeveto(energyMuon, xidMuon,yidMuon,zidMuon,i);
+				vetoMuon=cubeveto(energyMuon, xidMuon,yidMuon,zidMuon,fracVeto,i);
 				if (!vetoMuon)
 				{
 					foutevent << eventID[i] << endl;
