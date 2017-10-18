@@ -73,9 +73,9 @@ int main(int argc, char* argv[])
 	{
 		TString psdname ;
 		psdname.Form ("%d",i);
-		psdhistA[i]=TH2D(eventIDA+psdname,eventIDA+psdname,1500,0,50000,1000,0,1);
-		psdhistB[i]=TH2D(eventIDB+psdname,eventIDB+psdname,1500,0,50000,1000,0,1);
-		psdhist[i]=TH2D(eventID+psdname,eventID+psdname,1500,0,50000,1000,0,1);
+		psdhistA[i]=TH2D(eventIDA+psdname,eventIDA+psdname,1500,0,50000,1000,-0.3,1);
+		psdhistB[i]=TH2D(eventIDB+psdname,eventIDB+psdname,1500,0,50000,1000,-0.3,1);
+		psdhist[i]=TH2D(eventID+psdname,eventID+psdname,1500,0,50000,1000,-0.3,1);
 	}
 	/*vector to hold valid analysis information, being processed event by event and clear after reasonable histogram being created and data storage each event*/	
 	vector<int> pulse;
@@ -201,7 +201,7 @@ int main(int argc, char* argv[])
 									delete []pulseyB;
 									delete []xaxisB;*/	
 							
-									for (int j=30; j<180; j++)
+									for (int j=70; j<120; j++)
 									{
 										pulseinfoA=pulsePSDProcess(pulseA,j*1);
 										pulseinfoB=pulsePSDProcess(pulseB,j*1);
@@ -210,7 +210,7 @@ int main(int argc, char* argv[])
 										psdhist[j].Fill(pulseinfoA[0],pulseinfoA[1]);
 										psdhist[j].Fill(pulseinfoB[0],pulseinfoB[1]);
 									}
-                                                                        cout << eventnumber << eventrow << eventcol << eventchanl << eventscrod << " being processed" << endl;
+                                                                        //cout << eventnumber << eventrow << eventcol << eventchanl << eventscrod << " being processed" << endl;
 									pulseA.clear();
 									pulseB.clear();
 								}

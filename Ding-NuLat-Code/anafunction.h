@@ -396,8 +396,11 @@ vector<double> pulseProcess (vector<int>&l)
 			break;
 		}		
 	}
+        int psdpos=peakpos+95;
+	if (psdpos>adjustedpulse.size())
+	psdpos=peakpos; 
 	totalenergy=sum(adjustedpulse,leftzeropos,rightzeropos);
-	psdratio = psd (adjustedpulse,leftzeropos,peakpos,adjustedpulse.size());
+	psdratio = psd (adjustedpulse,leftzeropos,psdpos,adjustedpulse.size());
         pulsetiming= timeCFD (adjustedpulse);
 	/*event  information storage*/						
 	pulseinfo.push_back(totalenergy);

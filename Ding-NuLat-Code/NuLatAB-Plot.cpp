@@ -261,9 +261,9 @@ int main(int argc, char* argv[])
 								pulseA=pulseAB(pulse,0);
 								pulseB=pulseAB(pulse,1);
 								cuttedpulseA=CutShock(pulseA);					
-								adjustedpulseA=adjust(cuttedpulseA);
+								adjustedpulseA=flip(cuttedpulseA);
 								cuttedpulseB=CutShock(pulseB);							
-								adjustedpulseB=adjust(cuttedpulseB);
+								adjustedpulseB=flip(cuttedpulseB);
 								int *pulseyA=new int[pulseA.size()];
 								int *xaxisA=new int[pulseA.size()];	
 								int *pulseyB=new int[pulseB.size()];

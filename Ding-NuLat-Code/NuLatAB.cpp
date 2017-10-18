@@ -29,11 +29,11 @@ int main(int argc, char* argv[])
 		exit(EXIT_FAILURE);
 	}
 	ifstream fin;
-	TString rootap=".root";
+	/*TString rootap=".root";
 	TString analysisfile;
 	analysisfile.Form ("%s",argv[argc-1]);
 	TFile* f=new TFile (analysisfile+rootap,"recreate"); //summary root file being created, every time code being runned, file being recreated.
-	cout << "root file being created here" << endl;
+	cout << "root file being created here" << endl;*/
 	/* The output txt file will be listed as follows
 	 * A event-> peakA.txt, energyA.txt, psdA.txt, timingA.txt
 	 * B event-> peakB.txt, energyB.txt, psdB.txt, timingB.txt
@@ -81,8 +81,8 @@ int main(int argc, char* argv[])
 	int eventchanl=0;
 	int eventcol=0;
 	int eventwindow=0;
-	int eventfirst=0; // variable for initialize the analysis for the first event	 
-	int tempcondition[6]={0}; 	// {eventnumber rolnum colnum channelnum}
+	int eventfirst=0;               // variable for initialize the analysis for the first event	 
+	int tempcondition[6]={0}; 	// {eventnumber rolnum colnum channelnum timewindow scrod}
 	int totalenergysumA=0;
 	int totalenergysumB=0;
 	int timewindowend=0;
@@ -90,7 +90,7 @@ int main(int argc, char* argv[])
 	int timeinterval=0;
 	int timewindowsize=0;
 	int histcount=0;
-	/* Tstring name and 64 histogram being created, right now the histogram is PSD,Energy by both peak and Integral, might get rid off peak method*/
+	/* Tstring name and 64 histogram being created, right now the histogram is PSD,Energy by both peak and Integral, might get rid off peak method
 	TString rowstr="row ";	
 	TString colstr="col ";
 	TString chanlstr="channel ";
@@ -133,7 +133,7 @@ int main(int argc, char* argv[])
 		peakhistB[i-1]=TH1D(peakstr+histname+titleB,titlename,2000,0,2000);	
 		integralhistB[i-1]=TH1D(energystr+histname+titleB,titlename,1500,0,50000); // needs to be modified the size and maximum
 		psdhistB[i-1]=TH2D(psdstr+histname+titleB,titlename,1500,0,50000,100,0,1);
-	}
+	}*/
 	/*vector to hold valid analysis information, being processed event by event and clear after reasonable histogram being created and data storage each event*/	
 	vector<int> pulse;
 	vector<int> timewindow;	
@@ -156,6 +156,8 @@ int main(int argc, char* argv[])
 	vector<int> col;
 	vector<int> channel;
 	vector<int> cubeID;
+        vector<int> TriggeredChan;
+        bool TrigChanCheck=false;
 
 	/*Mapping term with structure 10*10
 	  Reading map information from map.txt
@@ -189,7 +191,7 @@ int main(int argc, char* argv[])
 	
 	cout << "Matrix initialize here" << endl;
 	/*Matrix initialization 
-		EnergyPeakMatrix	EnergyInteMatrix	CubeMatrix	PsdMatrix
+		EnergyPeakMatrix	EnergyInteMatrix	CubeMatrix	PsdMatrix       TimingMatrix    TimingABMatrix
 	*/
 	int TimingMatrixA[10][10]={	{0,	0,	0,	0,	0,	0,	0,	0,	0,	0},
 									{0,	0,	0,	0,	0,	0,	0,	0,	0,	0},
@@ -382,11 +384,32 @@ int main(int argc, char* argv[])
 							cout << "event window being initialized here with value \t" << eventwindow << endl;
 						}
 	        		        }
+                                        
+                                  
 					else if (tempdatacount==8)
 					{
-						/*After all the pre-process of the data, start deal with the issue from last event*/						
-						/* if event number is not the same, means new event starts here, at this point, analysis all the information analysised before for the previous event.*/
-										
+                                                /*deal with trig information first*/
+                                                if (atoi(p)==1)
+                                                {
+                                                        TrigChanCheck=true;                                                        
+                                                        chan=tempcondition[5]*1000+tempcondition[1]*100+tempcondition[2]*10+tempcondition[3];
+                                                        if (TriggeredChan.size()==0)
+                                                                TriggeredChan.push_back(chan);
+                                                        else
+                                                        {
+                                                                for (int j=0; j<TriggeredChan.size(); j++)
+                                                                {
+                                                                     if (TriggeredChan[j]==chan)
+                                                                        TrigChanCheck=false;
+                                                                }
+                                                        }
+                                                        if (TrigChanCheck)
+                                                             TriggeredChan.push_back(chan);   
+                                                }
+                                        
+                                                						
+                                                /*After all the pre-process of the data, start deal with the issue from last event*/						
+						/* if event number is not the same, means new event starts here, at this point, analysis all the information analysised before for the previous event.*/				
 						if (tempcondition[0]!=eventnumber || tempcondition[1]!=eventrow || tempcondition[2]!=eventcol || tempcondition[3]!=eventchanl || tempcondition[5]!=eventscrod) 
 						{
 							chan=eventscrod*1000+eventrow*100+eventcol*10+eventchanl;
@@ -449,7 +472,7 @@ int main(int argc, char* argv[])
 							}
 							if (tempcondition[0]!=eventnumber)
 							{				
-								cout << "event=" << eventnumber << " being processed" << endl;
+								//cout << "event=" << eventnumber << " being processed" << endl;
 								for (int j=0; j<cubeID.size(); j++) // create a proper mapping for different channel to a 2D Matrix
 								{								
 									/*call the function to find the position certain channel should be located*/
@@ -547,6 +570,12 @@ int main(int argc, char* argv[])
 									cubeIDfile << endl;		
 									timeABfile << endl;								
 								}
+                                                                anasummary << event[0] << "\t" ;
+                                                                for (int j=0; j<TriggeredChan.size(); j++)
+                                                                {
+                                                                        anasummary << TriggeredChan[j] << "\t";
+                                                                }
+                                                                anasummary << endl;
 								/*clear all the information from last event*/
 								for (int j=0; j<10; j++)
 								{
@@ -555,11 +584,11 @@ int main(int argc, char* argv[])
 										EnergyPeakMatrixA[j][k]=0;
 										EnergyInteMatrixA[j][k]=0;
 										CubeMatrix[j][k]=0;
-										PsdMatrixA[j][k] =0; 0;											
+										PsdMatrixA[j][k]=0; 										
 										TimingMatrixA[j][k]=0;	
 										EnergyPeakMatrixB[j][k]=0;
 										EnergyInteMatrixB[j][k]=0;
-										PsdMatrixB[j][k] =0; 0;											
+										PsdMatrixB[j][k]=0;									
 										TimingMatrixB[j][k]=0;
 										timeABMatrix[j][k]=0;		
 									}
@@ -581,7 +610,8 @@ int main(int argc, char* argv[])
 								row.clear();
 								col.clear();
 								channel.clear();
-								cout << "event process finished" << endl;
+                                                                TriggeredChan.clear();
+								//cout << "event process finished" << endl;
 							} // end of last event processing
 							//cout << "pulse information being refreshed"<<endl;
 							pulseA.clear();
@@ -635,7 +665,7 @@ int main(int argc, char* argv[])
 	energyfileB.close();
 	psdfileB.clear();
 	psdfileB.close();
-	f->Write();
-	f->Close();
+	/*f->Write();
+	f->Close();*/
 	return 0;
 }
