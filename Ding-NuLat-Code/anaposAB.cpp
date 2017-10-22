@@ -320,6 +320,7 @@ int main(int argc, char* argv[])
 	}
         //printMatrix (timingAB);
 	
+        /*Choice AB: doing event search requires both A and B are geometrically well defined.*/
 	if (option=="AB pick out" || option=="AB")
 	{
 		cout << "function AB pick" << endl;
@@ -485,7 +486,8 @@ int main(int argc, char* argv[])
 		f->Write();
 		f->Close();
 	}
-        /*AB pick with a rewrite energy mapping by veto the energy event's that not time realted*/
+        
+       /*Choice ABT: doing event search requires both A and B are geometrically well defined and also their timing information also being used as veto requirement.*/
 
         if (option=="AB pick out with timing check" || option=="ABT")
 	{
@@ -546,7 +548,7 @@ int main(int argc, char* argv[])
 		int xid=0;
 		int yid=0;                 
 		int histTag=0;
-		for (int i=0; i<128; i++)
+		for (int i=0; i<100; i++)
 		{
 			TString xidname,yidname;
 			xid=i%10;
@@ -835,7 +837,8 @@ foutdata << "Event Num, Event Count, Orange A, Blue A, Green A, Orange B, Blue B
 		f->Close();
 	}
 	
-        /*B event pick up*/
+        /*Choice B: doing event search requires B event is geometrically well defined.*/
+	
 
 	if (option=="B pick out" || option=="B")
 	{
@@ -844,7 +847,7 @@ foutdata << "Event Num, Event Count, Orange A, Blue A, Green A, Orange B, Blue B
 		string MapOption;
 		int facepick;
                 double fracVeto=0.;
-		TString xAid, yAid, zAid, xBid, yBid, zBid,Aname, Bname;
+		TString xAid, yAid, zAid, xBid, yBid, zBid,Aname, Bname, fracname;
 		Aname="Event-A-";
 		Bname="Event-B-";
                 cout << "input factor for veto" << endl;
@@ -857,13 +860,14 @@ foutdata << "Event Num, Event Count, Orange A, Blue A, Green A, Orange B, Blue B
 		cin >> zidB;
 		cout << "Do you need 2D events mapping? (y/n)" << endl;
 		cin >> MapOption;
+                fracname.Form("%f",fracVeto);
 		xAid.Form("%d",xidA);
 		xBid.Form("%d",xidB);
 		yAid.Form("%d",yidA);
 		yBid.Form("%d",yidB);
 		zAid.Form("%d",zidA);
 		zBid.Form("%d",zidB);
-		TString rootid=Bname+xBid+"-"+yBid+"-"+zBid;
+		TString rootid=Bname+xBid+"-"+yBid+"-"+zBid+"-"+fracname;
 		/*create root file to hold spectrum*/
 		TString rootap=".root";
 		TString analysisfile;
@@ -996,6 +1000,8 @@ foutdata << "Event Num, Event Count, Orange A, Blue A, Green A, Orange B, Blue B
 		f->Write();
 		f->Close();
 	}
+
+        /*Choice T: accumualte timing information and drawing histogram based on that.*/
 
         if (option=="timing of AB" || option=="T")
 	{

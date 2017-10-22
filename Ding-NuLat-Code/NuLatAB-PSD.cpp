@@ -13,6 +13,7 @@
 #include "TH1D.h"
 #include "TString.h"
 #include "anafunction.h"
+#include <ctime>
 using namespace std;
 typedef vector<int> Row;
 typedef vector<Row> Matrix;
@@ -22,6 +23,9 @@ bool eventtest (int eventid, vector<int> &event);
 
 int main(int argc, char* argv[])
 {
+        clock_t start;
+        double duration;
+        start=clock();
 	if (argc==1)
 	{
 		cerr << "Usage:" << argv[0] << "filename[s]\n";
@@ -69,7 +73,7 @@ int main(int argc, char* argv[])
 	TH2D psdhistA[200];
 	TH2D psdhistB[200];
 	TH2D psdhist[200];
-	for (int i=0; i<200; i++)
+	for (int i=0; i<100; i++)
 	{
 		TString psdname ;
 		psdname.Form ("%d",i);
@@ -88,6 +92,13 @@ int main(int argc, char* argv[])
 	vector<int> cuttedpulseB;					
 	vector<int> adjustedpulseB;
 	bool eventpick=true;
+        double psdratioA, psdratioB;
+        int tailenergyA, tailenergyB;
+        int totalenergyA, totalenergyB;
+        int leftzeroposA, rightzeroposA, leftzeroposB, rightzeroposB, peakposA, peakposB;   
+        int threshold=10;
+        int psdposA, psdposB;
+
 								
 	/* reading data file, the variable input when run the program has the struture : file1 , file2, file3,.... , filelast, output-file-name*/
 	for (int i=1; i<argc-3; i++)
@@ -162,20 +173,21 @@ int main(int argc, char* argv[])
 					{
 						/*After all the pre-process of the data, start deal with the issue from last event*/						
 						/* if event number is not the same, means new event starts here, at this point, analysis all the information analysised before for the previous event.*/
-											
+                                                chan=tempcondition[4]*1000+tempcondition[1]*100+tempcondition[2]*10+tempcondition[1]; 
+                                                              					
 						if (tempcondition[0]!=eventnumber || tempcondition[1]!=eventrow || tempcondition[2]!=eventcol || tempcondition[3]!=eventchanl || tempcondition[4]!=eventscrod) 
 						{							
-							if (eventtest(eventnumber,eventIDpick))
+                                                        chan=eventscrod*1000+eventrow*100+eventcol*10+eventchanl;							
+                                                        if (chan==chantest)
 							{							
-								chan=eventscrod*1000+eventrow*100+eventcol*10+eventchanl;
-								if (chan==chantest)
+								if (eventtest(eventnumber,eventIDpick))
 								{						
 									pulseA=pulseAB(pulse,0);
 									pulseB=pulseAB(pulse,1);
-									/*cuttedpulseA=CutShock(pulseA);					
-									adjustedpulseA=adjust(cuttedpulseA);
+									cuttedpulseA=CutShock(pulseA);					
+									adjustedpulseA=flip(cuttedpulseA);
 									cuttedpulseB=CutShock(pulseB);					
-									adjustedpulseB=adjust(cuttedpulseB);									
+									adjustedpulseB=flip(cuttedpulseB);									
 									int *pulseyA=new int[adjustedpulseA.size()];
 									int *xaxisA=new int[adjustedpulseA.size()];
 									for (int j=0; j<adjustedpulseA.size(); j++)
@@ -183,8 +195,6 @@ int main(int argc, char* argv[])
 										pulseyA[j]=adjustedpulseA[j];
 										xaxisA[j]=j;
 									}
-									TGraph *gA=new TGraph(pulseA.size(),xaxisA,pulseyA);
-									gA->Write();
 									int *pulseyB=new int[adjustedpulseB.size()];
 									int *xaxisB=new int[adjustedpulseB.size()];
 									for (int j=0; j<adjustedpulseB.size(); j++)
@@ -192,26 +202,66 @@ int main(int argc, char* argv[])
 										pulseyB[j]=adjustedpulseB[j];
 										xaxisB[j]=j;
 									}
-									TGraph *gB=new TGraph(pulseB.size(),xaxisB,pulseyB);
-									gB->Write();
-									delete gA;
-									delete []pulseyA;
-									delete []xaxisA;
-									delete gB;
-									delete []pulseyB;
-									delete []xaxisB;*/	
-							
-									for (int j=70; j<120; j++)
+									peakposA=maxfind(adjustedpulseA);
+                                                                        peakposB=maxfind(adjustedpulseB);
+                                                                        for (int j=0; j<peakposA;j++)
+	                                                                {
+		                                                                if (pulseyA[peakposA-j]<threshold)
+		                                                                {
+			                                                                leftzeroposA=peakposA-j;
+			                                                                break;
+		                                                                }		
+	                                                                }
+                                                                        for (int j=peakposA; j<adjustedpulseA.size();j++)
+	                                                                {
+		                                                                if (pulseyA[j]<threshold)
+		                                                                {
+			                                                                rightzeroposA=j;
+			                                                                break;
+		                                                                }		
+	                                                                }
+                                                                        for (int j=0; j<peakposB;j++)
+	                                                                {
+		                                                                if (pulseyB[peakposB-j]<threshold)
+		                                                                {
+			                                                                leftzeroposB=peakposB-j;
+			                                                                break;
+		                                                                }		
+	                                                                }
+                                                                        for (int j=peakposB; j<adjustedpulseB.size();j++)
+	                                                                {
+		                                                                if (pulseyB[j]<threshold)
+		                                                                {
+			                                                                rightzeroposB=j;
+			                                                                break;
+		                                                                }		
+	                                                                }
+                                                                        totalenergyA=sum(adjustedpulseA,leftzeroposA,rightzeroposA);
+                                                                        totalenergyB=sum(adjustedpulseB,leftzeroposB,rightzeroposB);
+
+									for (int j=0; j<100; j++)
 									{
-										pulseinfoA=pulsePSDProcess(pulseA,j*1);
-										pulseinfoB=pulsePSDProcess(pulseB,j*1);
-										psdhistA[j].Fill(pulseinfoA[0],pulseinfoA[1]);
-										psdhistB[j].Fill(pulseinfoB[0],pulseinfoB[1]);
-										psdhist[j].Fill(pulseinfoA[0],pulseinfoA[1]);
-										psdhist[j].Fill(pulseinfoB[0],pulseinfoB[1]);
+										psdposA=peakposA+30+j*3;
+                                                                                psdposB=peakposB+30+j*3;
+                                                                                if (psdposA>adjustedpulseA.size())
+                                                                                psdposA=adjustedpulseA.size()-2;  
+                                                                                if (psdposB>adjustedpulseB.size())
+                                                                                psdposB=adjustedpulseB.size()-2;                           
+                                                                                tailenergyA=sum(adjustedpulseA,psdposA,adjustedpulseA.size());
+										tailenergyB=sum(adjustedpulseB,psdposB,adjustedpulseB.size());
+                                                                                psdratioA=tailenergyA/totalenergyA;
+                                                                                psdratioB=tailenergyB/totalenergyB;
+										psdhistA[j].Fill(totalenergyA,psdratioA);
+										psdhistB[j].Fill(totalenergyB,psdratioB);
+										psdhist[j].Fill(totalenergyA,psdratioA);
+										psdhist[j].Fill(totalenergyB,psdratioB);
 									}
                                                                         //cout << eventnumber << eventrow << eventcol << eventchanl << eventscrod << " being processed" << endl;
-									pulseA.clear();
+                                                                        delete []pulseyA;
+									delete []xaxisA;
+									delete []pulseyB;
+                                                                        delete []xaxisB;                                      
+                                                                        pulseA.clear();
 									pulseB.clear();
 								}
 							}
@@ -226,7 +276,10 @@ int main(int argc, char* argv[])
 						}
 					}
 					else if (tempdatacount>8)
-					pulse.push_back(atoi(p));
+                                        {                                                                      
+                                                if (chan==chantest)					        
+                                                pulse.push_back(atoi(p));
+                                        }
 					p=strtok(NULL,d);
 					tempdatacount++;
 				}
@@ -237,6 +290,8 @@ int main(int argc, char* argv[])
 		fin.clear();
 		fin.close();
 	}
+        duration=(clock()-start)/(double) CLOCKS_PER_SEC;
+        cout << "program running time is " << duration << endl;           
 	f->Write();
 	f->Close();
 	return 0;
@@ -246,11 +301,33 @@ int main(int argc, char* argv[])
 bool eventtest (int eventid, vector<int> &event)
 {
 	bool eventpick=false;	
+        int low=0, high=event.size()-1, middle;
+        while (low <= high)
+        {
+                middle=(high+low)/2;
+                if (event[middle]==eventid)
+                {
+                        eventpick=true;
+                        break;
+                }
+                else if (event[middle]>eventid)
+                {
+                        high=middle-1;
+                }
+                else
+                {
+                        low=middle+1;                
+                }
+        } 
+       
+        /*
 	for(int i=0; i<event.size(); i++)
 	{
 		if (eventid==event[i])
 		eventpick=true;
 	}
+        */
+
 	return eventpick;
 }
 

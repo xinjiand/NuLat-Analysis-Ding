@@ -13,6 +13,8 @@
 #include "TH1D.h"
 #include "TString.h"
 #include "anafunction.h"
+#include <unordered_map>
+#include <ctime>
 using namespace std;
 typedef vector<int> Row;
 typedef vector<Row> Matrix;
@@ -23,6 +25,9 @@ int main(int argc, char* argv[])
 	0	 	1---n-2		n-1
 	exe 	data file  	output-file-name
 	*/
+        clock_t start;
+        double duration;
+        start=clock();
 	if (argc==1)
 	{
 		cerr << "Usage:" << argv[0] << "filename[s]\n";
@@ -64,6 +69,9 @@ int main(int argc, char* argv[])
 	anasummary.open (analysisname+" summary.txt",fstream::app);
 	ofstream timeABfile;
 	timeABfile.open (analysisname+" timeAB.txt",fstream::app);
+        ofstream fcsv;
+	fcsv.open (analysisname+".csv",fstream::app);
+        fcsv << "Event Num, ChanID, energyA, energyB, peakA, peakB, timingA, timingB, timingAB, psdA, psdB, \n";
 	
 	/* variable to hold content for each line from data*/
 	int lineMaximum=1000;
@@ -162,8 +170,36 @@ int main(int argc, char* argv[])
 	/*Mapping term with structure 10*10
 	  Reading map information from map.txt
 	*/
+
+        /*int main ()
+{
+  std::unordered_map<std::string,std::string> mymap;
+
+  mymap["Bakery"]="Barbara";  // new element inserted
+  mymap["Seafood"]="Lisa";    // new element inserted
+  mymap["Produce"]="John";    // new element inserted
+
+  std::string name = mymap["Bakery"];   // existing element accessed (read)
+  mymap["Seafood"] = name;              // existing element accessed (written)
+
+  mymap["Bakery"] = mymap["Produce"];   // existing elements accessed (read/written)
+
+  name = mymap["Deli"];      // non-existing element: new element "Deli" inserted!
+
+  mymap["Produce"] = mymap["Gifts"];    // new element "Gifts" inserted, "Produce" written
+
+  for (auto& x: mymap) {
+    std::cout << x.first << ": " << x.second << std::endl;
+  }
+
+  return 0;
+}
+
 	
-	Matrix map(10,Row(10));
+Edit & Run
+*/
+	unordered_map<int,int> channelmapXY;
+        Matrix map(10,Row(10));
 	ifstream finmap;
 	finmap.open ("map.txt");
 	int a=0; 
@@ -174,7 +210,8 @@ int main(int argc, char* argv[])
 		while (p)
 		{			
 			map[a][b]=atoi(p);
-			b++;			
+                        channelmapXY[atoi(p)]=a*10+b;
+                        b++;			
 			p=strtok(NULL,d);	
 		}
 		//cout<< a << b << "\t" << map[a][b] << endl;
@@ -185,7 +222,7 @@ int main(int argc, char* argv[])
         printMatrix(map);
 	
 	bool pulsecheck=false; // bool variable used to check whether signal is from valid channel on the map
-
+        std::unordered_map<int,int>::const_iterator got;
 	int xID=0;
 	int yID=0;
 	
@@ -415,17 +452,20 @@ int main(int argc, char* argv[])
 							chan=eventscrod*1000+eventrow*100+eventcol*10+eventchanl;
 							pulsecheck=false;
 							/*loop being calledl to check whether the channel is match with map, pick up all the signal which is matched the map and only doing analysis for them*/
-							for (int j=0; j<10; j++)
+                                                        got=channelmapXY.find (chan);						
+                                                        /*for (int j=0; j<10; j++)
 							{
 								for (int k=0; k<10; k++)
 								{
 									if (chan==map[j][k])
 									{
 										pulsecheck=true;
+                                                                                break;
 									}
 								}
-							}							
-							if (pulsecheck)
+							}*/							
+							if (got != channelmapXY.end())
+                                                        //if (pulsecheck)
 							{	
 								//cout << "pulse check function running" << endl;						
 								pulseA=pulseAB(pulse,0);
@@ -476,9 +516,12 @@ int main(int argc, char* argv[])
 								for (int j=0; j<cubeID.size(); j++) // create a proper mapping for different channel to a 2D Matrix
 								{								
 									/*call the function to find the position certain channel should be located*/
-									xID= mapXID (map , scrod[j], row[j], col[j], channel[j]);
-									yID= mapYID (map , scrod[j], row[j], col[j], channel[j]);
-                                                                       // cout << eventnumber << "\t" << xID << "\t" << yID<< "\t" << scrod[j] << row[j]<<col[j]<<channel[j]<< "\t"<< energyspecA[j] << "\t" <<cubeID[j] << endl;	
+									//xID= mapXID (map , scrod[j], row[j], col[j], channel[j]);
+									//yID= mapYID (map , scrod[j], row[j], col[j], channel[j]);
+                                                                        chan=scrod[j]*1000+row[j]*100+col[j]*10+channel[j];
+                                                                        xID=channelmapXY[chan]%10;
+                                                                        yID=(channelmapXY[chan]/10)%10;
+                                                                        //cout << eventnumber << "\t" << xID << "\t" << yID<< "\t" << scrod[j] << row[j]<<col[j]<<channel[j]<< "\t"<< energyspecA[j] << "\t" <<cubeID[j] << endl;	
 									// write certain information into proper matrix
 									EnergyPeakMatrixA[yID][xID]=energypeakA[j];
 									EnergyPeakMatrixB[yID][xID]=energypeakB[j];			
@@ -490,7 +533,11 @@ int main(int argc, char* argv[])
 									TimingMatrixB[yID][xID]=timingB[j];		
 									CubeMatrix[yID][xID]=cubeID[j]; // might just get rid of this matrix and the txt file and just use the map
 									timeABMatrix[yID][xID]=timeAB[j];
-									if (xID<5 && yID<5)									
+                                                                        /*fcsv << "Event Num, ChanID, energyA, energyB, peakA, peakB, timingA, timingB, timingAB, psdA, psdB, \n";
+	*/
+                                                                        fcsv << "event[0], chan, energyspecA[j], energyspecB[j], energypeakA[j], energypeakB[j], timingA[j], timingB[j], timeAB[j], psdanalysisA[j], psdanalysisB[j], \n";
+	
+            								if (xID<5 && yID<5)									
 									{
 										totalenergysumA+=energyspecA[j]; // totalenergy currently add whole blue face which is from 04-04
 										totalenergysumB+=energyspecB[j];							
@@ -643,7 +690,9 @@ int main(int argc, char* argv[])
 		fin.clear();
 		fin.close();
 	}
-	anasummary.clear();	
+        duration=(clock()-start)/(double) CLOCKS_PER_SEC;
+        cout << "program running time is " << duration << endl;                
+        anasummary.clear();	
 	anasummary.close();
 	cubeIDfile.clear();
 	cubeIDfile.close();
@@ -665,6 +714,8 @@ int main(int argc, char* argv[])
 	energyfileB.close();
 	psdfileB.clear();
 	psdfileB.close();
+        fcsv.clear();
+        fcsv.close();
 	/*f->Write();
 	f->Close();*/
 	return 0;

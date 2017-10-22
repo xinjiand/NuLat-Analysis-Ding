@@ -24,8 +24,10 @@ int main()
         fout << "NuLatAB-PSD ";
         for (int i=0; i<(maxfile-minfile+1); i++)
         {     
-                           
+                if ((minfile+i)<1000)          
                 fout << "exp_0043_run_0"<<minfile+i<<"_subtracted.glenn ";
+                else
+                fout << "exp_0043_run_"<<minfile+i<<"_subtracted.glenn ";                
         }
         fout << channel << " " << eventfile << " " << anafile << endl;
         fout.clear();

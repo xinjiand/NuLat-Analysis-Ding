@@ -35,7 +35,7 @@ int main()
                 }
                 
         }
-       // fout << "NuLatMap" << endl;
+        fout << "NuLatMap" << endl;
         for (int i=0; i<(maxfile-minfile+1); i++)
         {     
                 

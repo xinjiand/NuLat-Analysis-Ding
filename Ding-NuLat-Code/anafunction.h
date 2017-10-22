@@ -13,7 +13,7 @@ vector<int> CutShock (vector<int> &l);
 int maxfind (vector<int>&l);
 int minfind(vector<int> &l);
 int sum (vector<int>&l, int number1, int number2);
-double psd (vector<int>&l,int number1, int number2, int number3);
+double psd (vector<int>&l,int number1, int number2, int number3, int number4);
 int mapXID (Matrix &l , int row, int col,int chanl);
 int mapYID (Matrix &l , int row, int col,int chanl);
 vector<double> pulseProcess (vector<int>&l);
@@ -257,7 +257,7 @@ int sum (vector<int>&l, int number1, int number2)
 }
 
 /*Fuction used to find psd, majorly call the function sum to get result with two different integration window and find the ratio of them*/
-double psd (vector<int>&l,int number1,int number2, int number3)
+double psd (vector<int>&l,int number1,int number2, int number3, int number4)
 {
 	/*find the ratio between peakpush(number2), peakleftzero(number1), peakrightzero(number3 currently define as the end of pulse)*/	
 	int* array=new int[l.size()];
@@ -268,8 +268,9 @@ double psd (vector<int>&l,int number1,int number2, int number3)
 	int peakleft=number1;
 	int peakpush=number2;
 	int peakright=number3;
+        int peakend=number4;
 	int totalenergy=sum(l,peakleft,peakright);
-	int tailenergy=sum(l,peakpush,peakright);
+	int tailenergy=sum(l,peakpush,peakend);
 	double psdana=0.;
 	psdana=(double (tailenergy)/double (totalenergy));
 	return psdana;	
@@ -369,7 +370,7 @@ vector<double> pulseProcess (vector<int>&l)
 	int peakamp=0;
 	double psdratio=0.;	
 	int peakpos=0;	
-	int threshold=0;
+	int threshold=5;
 	int leftzeropos=0;
 	int rightzeropos=adjustedpulse.size();
         int pulsetiming=0;	
@@ -400,7 +401,7 @@ vector<double> pulseProcess (vector<int>&l)
 	if (psdpos>adjustedpulse.size())
 	psdpos=peakpos; 
 	totalenergy=sum(adjustedpulse,leftzeropos,rightzeropos);
-	psdratio = psd (adjustedpulse,leftzeropos,psdpos,adjustedpulse.size());
+	psdratio = psd (adjustedpulse,leftzeropos,psdpos,rightzeropos,adjustedpulse.size());
         pulsetiming= timeCFD (adjustedpulse);
 	/*event  information storage*/						
 	pulseinfo.push_back(totalenergy);
@@ -657,6 +658,7 @@ vector<double> pulsePSDProcess (vector<int>&l,int push)
 	int peakpos=0;
 	int threshold=0;
 	int leftzeropos=0;
+        int rightzeropos=adjustedpulse.size();
 	//cout << "pulse being called" << endl;	
 	for (int j=0; j<adjustedpulse.size(); j++)
 	{
@@ -676,9 +678,17 @@ vector<double> pulsePSDProcess (vector<int>&l,int push)
 			break;
 		}		
 	}
+        for (int j=peakpos; j<adjustedpulse.size();j++)
+	{
+		if (pulsey[j]<threshold)
+		{
+			rightzeropos=j;
+			break;
+		}		
+	}
 	totalenergy=sum(adjustedpulse,leftzeropos,adjustedpulse.size());
 	//cout << peakamp << endl;
-	psdratio = psd (adjustedpulse,leftzeropos,psdpos,adjustedpulse.size());
+	psdratio = psd (adjustedpulse,leftzeropos,psdpos, rightzeropos, adjustedpulse.size());
 	/*event  information storage*/						
 	pulseinfo.push_back(totalenergy);
 	pulseinfo.push_back(psdratio);
@@ -688,6 +698,5 @@ vector<double> pulsePSDProcess (vector<int>&l,int push)
 	delete []xaxis;	
 	return pulseinfo;						
 }
-
 
 #endif
