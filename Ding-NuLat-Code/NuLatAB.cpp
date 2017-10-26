@@ -98,6 +98,7 @@ int main(int argc, char* argv[])
 	int timeinterval=0;
 	int timewindowsize=0;
 	int histcount=0;
+        bool trigstatus=false;
 	/* Tstring name and 64 histogram being created, right now the histogram is PSD,Energy by both peak and Integral, might get rid off peak method
 	TString rowstr="row ";	
 	TString colstr="col ";
@@ -430,14 +431,15 @@ Edit & Run
                                                 {
                                                         TrigChanCheck=true;                                                        
                                                         chan=tempcondition[5]*1000+tempcondition[1]*100+tempcondition[2]*10+tempcondition[3];
-                                                        if (TriggeredChan.size()==0)
-                                                                TriggeredChan.push_back(chan);
-                                                        else
+                                                        if (TriggeredChan.size()!=0)
                                                         {
                                                                 for (int j=0; j<TriggeredChan.size(); j++)
                                                                 {
                                                                      if (TriggeredChan[j]==chan)
+                                                                     {   
                                                                         TrigChanCheck=false;
+                                                                        break;
+                                                                     }
                                                                 }
                                                         }
                                                         if (TrigChanCheck)
@@ -533,9 +535,18 @@ Edit & Run
 									TimingMatrixB[yID][xID]=timingB[j];		
 									CubeMatrix[yID][xID]=cubeID[j]; // might just get rid of this matrix and the txt file and just use the map
 									timeABMatrix[yID][xID]=timeAB[j];
-                                                                        /*fcsv << "Event Num, ChanID, energyA, energyB, peakA, peakB, timingA, timingB, timingAB, psdA, psdB, \n";
-	*/
-                                                                        fcsv << "event[0], chan, energyspecA[j], energyspecB[j], energypeakA[j], energypeakB[j], timingA[j], timingB[j], timeAB[j], psdanalysisA[j], psdanalysisB[j], \n";
+                                                                        /*fcsv << "Event Num, ChanID, trigstatus, energyA, energyB, peakA, peakB, timingA, timingB, timingAB, psdA, psdB, \n";
+	*/                                                              
+                                                                        trigstatus=false;                                                                        
+                                                                        for (int k=0; k<TriggeredChan.size(); k++)
+                                                                        {
+                                                                             if (TriggeredChan[k]==chan)
+                                                                             {   
+                                                                                trigstatus=true;
+                                                                                break;
+                                                                             }
+                                                                        }
+                                                                        fcsv << event[0] <<" ," << chan <<" ,"<< trigstatus << " ," << energyspecA[j] <<" ," << energyspecB[j]<<" ," << energypeakA[j]<<" ," << energypeakB[j]<<" ," << timingA[j]<<" ," << timingB[j]<<" ," << timeAB[j]<<" ," << psdanalysisA[j]<<" ," << psdanalysisB[j] <<" ," << "\n";
 	
             								if (xID<5 && yID<5)									
 									{
