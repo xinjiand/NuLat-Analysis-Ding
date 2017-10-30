@@ -16,7 +16,7 @@
 using namespace std;
 typedef vector<int> Row;
 typedef vector<Row> Matrix;
-typedef vector<float> RowPsd;
+typedef vector<double> RowPsd;
 typedef vector<RowPsd> MatrixPsd;
 
 void recalibration (float a[10][10], int rl,int rh,int cl, int ch);

@@ -2,11 +2,22 @@
 #define anafunction_H_
 #include <stdlib.h>
 #include <math.h>
+#include "TFile.h"
+#include "TGraph.h"
+#include "TGraph2D.h"
+#include "TMultiGraph.h"
+#include "TNtuple.h"
+#include "TH2D.h"
+#include "TH1D.h"
+#include "TString.h"
+
 #define WINDOW 23.5
 #define SAMPLE 0.37
 using namespace std;
 typedef vector<int> Row;
 typedef vector<Row> Matrix;
+typedef vector<double> RowPsd;
+typedef vector<RowPsd> MatrixPsd;
 /*function generall used when deal with the raw data */
 vector<int> adjust (vector<int> &l);
 vector<int> CutShock (vector<int> &l);
@@ -35,6 +46,11 @@ bool twosideveto (Matrix &l , int x, int y, int z,double c, int n);
 bool noiseveto (Matrix &l , int x, int y, int n);
 int mapXIDtrig (Matrix &l , int ch);
 int mapYIDtrig (Matrix &l , int ch);
+vector<int> CFDpulse (vector<int> &l);
+int BEvent (char* filename, vector<int> eventID, int n, Matrix &energyA, Matrix &energyB, Matrix &peakA, Matrix &peakB, Matrix &timingA, Matrix &timingB, Matrix &psdA, Matrix &psdB, Matrix &timingAB);
+int ABEvent (char* filename, vector<int> eventID, int n, Matrix &energyA, Matrix &energyB, Matrix &peakA, Matrix &peakB, Matrix &timingA, Matrix &timingB, Matrix &psdA, Matrix &psdB, Matrix &timingAB);
+int ABtEvent (char* filename, vector<int> eventID, int n, Matrix &energyA, Matrix &energyB, Matrix &peakA, Matrix &peakB, Matrix &timingA, Matrix &timingB, MatrixPsd &psdA, MatrixPsd &psdB, Matrix &timingAB);
+
 
 /* function generall used for both NuLat-AB and NuLat-Muon and NuLat-PSD 
 	adjust -> flip the negative pulse into positive so when do the integral, it directly becomes positive energy valuse
@@ -130,59 +146,68 @@ vector<int> CutShock (vector<int> &l)
 /*Function to implemented CFD method to find timing information*/
 int timeCFD (vector<int>&l)
 {
-        int* arrayA=new int[l.size()];
-        int* arrayB=new int[l.size()];
-        for (int i=0; i<l.size(); i++)
-        {
-                if (i<30)
-                arrayA[i]=0;
-                else	        
-                arrayA[i]=l[i-30];
-        }
-        for (int i=0; i<l.size(); i++)
-        {
-                arrayB[i]=-l[i]*0.4;
-        }
-        int* array=new int[l.size()];
-        vector<int> modifiedpulse;
-        for (int i=0; i<l.size(); i++)
-	{
-		modifiedpulse.push_back(arrayA[i]+arrayB[i]); //adjust the baseline and flip the pulse
-	}
-        for (int i=0; i<l.size(); i++)
-        {
-                array[i]=arrayA[i]+arrayB[i];
-        } 
-        //cout << "pulse being reorganized as array" << endl;
-        int minpos=minfind(modifiedpulse);
-        int maxpos=maxfind(modifiedpulse);
-        int FirstNegative=minpos;
-        int FirstPositive=maxpos;
-        double zeropos=0;
-        //cout << minpos << "\t" << maxpos << "\t" << modifiedpulse[minpos] << "\t" <<  modifiedpulse[maxpos] <<endl;
-        if (minpos < maxpos && modifiedpulse[minpos]<0 && modifiedpulse[maxpos]>0)
-        {        
-                for (int i=0; i<abs(maxpos-minpos); i++)
-                {
-                        if (modifiedpulse[maxpos-i]<0)
-                        {
-                                FirstNegative=maxpos-i;
-                                break;
-                        }                
-                }
-                for (int i=0; i<abs(maxpos-minpos); i++)
-                {
-                        if (modifiedpulse[minpos+i]>0)
-                        {
-                                FirstPositive=minpos+i;
-                                break;
-                        }                
-                }
-                //zeropos=((modifiedpulse[FirstPositive]-modifiedpulse[FirstNegative])*FirstPositive-(FirstPositive-FirstNegative)*modifiedpulse[FirstPositive])/(modifiedpulse[FirstPositive]-modifiedpulse[FirstNegative]);
-                zeropos=(FirstPositive+FirstNegative)/2;
-        }
-        return zeropos;
+	vector<int> modifiedpulse;
+	modifiedpulse=CFDpulse(l);
+
+    int minpos=minfind(modifiedpulse);
+    int maxpos=maxfind(modifiedpulse);
+    int FirstNegative=minpos;
+    int FirstPositive=maxpos;
+    double zeropos=0;
+    //cout << minpos << "\t" << maxpos << "\t" << modifiedpulse[minpos] << "\t" <<  modifiedpulse[maxpos] <<endl;
+    if (minpos < maxpos && modifiedpulse[minpos]<0 && modifiedpulse[maxpos]>0)
+    {        
+            for (int i=0; i<abs(maxpos-minpos); i++)
+            {
+                    if (modifiedpulse[maxpos-i]<0)
+                    {
+                            FirstNegative=maxpos-i;
+                            break;
+                    }                
+            }
+            for (int i=0; i<abs(maxpos-minpos); i++)
+            {
+                    if (modifiedpulse[minpos+i]>0)
+                    {
+                            FirstPositive=minpos+i;
+                            break;
+                    }                
+            }
+            //zeropos=((modifiedpulse[FirstPositive]-modifiedpulse[FirstNegative])*FirstPositive-(FirstPositive-FirstNegative)*modifiedpulse[FirstPositive])/(modifiedpulse[FirstPositive]-modifiedpulse[FirstNegative]);
+            zeropos=(FirstPositive+FirstNegative)/2;
+    }
+
+    return zeropos;
                      
+}
+
+/*function to creat a CFD vector*/
+
+vector<int> CFDpulse (vector<int> &l)
+{
+	vector<int> cfd;
+	int* arrayA=new int[l.size()];
+	int* arrayB=new int[l.size()];
+	for (int i=0; i<l.size(); i++)
+	{
+		if (i<30)
+		arrayA[i]=0;
+		else	        
+		arrayA[i]=l[i-30];
+	}
+	for (int i=0; i<l.size(); i++)
+	{
+		arrayB[i]=-l[i]*0.4;
+	}
+	
+	for (int i=0; i<l.size(); i++)
+	{
+		cfd.push_back(arrayA[i]+arrayB[i]); //adjust the baseline and flip the pulse
+	}
+
+	delete []arrayA;
+	delete []arrayB;
+	return cfd;
 }
 
 
@@ -698,5 +723,767 @@ vector<double> pulsePSDProcess (vector<int>&l,int push)
 	delete []xaxis;	
 	return pulseinfo;						
 }
+
+/*	Matrix energyA(n*10,Row(10));	
+	MatrixPsd psdA(n*10,RowPsd(10));
+	Matrix peakA(n*10,Row(10));
+	Matrix timingA(n*10,Row(10));
+	Matrix energyB(n*10,Row(10));	
+	MatrixPsd psdB(n*10,RowPsd(10));
+	Matrix peakB(n*10,Row(10));
+	Matrix timingB(n*10,Row(10));	
+	Matrix cube(n*10,Row(10));
+	Matrix timingAB(n*10,Row(10));
+	
+*/
+
+int ABEvent (char* filename, vector<int> eventID, int n, Matrix &energyA, Matrix &energyB, Matrix &peakA, Matrix &peakB, Matrix &timingA, Matrix &timingB, MatrixPsd &psdA, MatrixPsd &psdB, Matrix &timingAB)
+{
+	cout << "function AB pick" << endl;
+	int xidA, yidA, zidA, xidB, yidB, zidB,faceid;
+	string MapOption;
+	TString xAid, yAid, zAid, xBid, yBid, zBid, Aname, Bname, fracname;
+	Aname="Event-A-";
+	Bname="Event-B-";
+	cout << "input xid for A event" << endl;
+	cin >> xidA;
+	cout << "input yid for A event" << endl;
+	cin >> yidA;
+	cout << "input zid for A event" << endl;
+	cin >> zidA;
+	cout << "input xid for B event" << endl;
+	cin >> xidB;
+	cout << "input yid for B event" << endl;
+	cin >> yidB;
+	cout << "input zid for B event" << endl;
+	cin >> zidB;
+	cout << "Input the face pmt being trigged" << endl;
+	cin >> faceid;
+	cout << "Do you need 2D events mapping? (y/n)" << endl;
+	cin >> MapOption;
+	int facepick;
+	double fracVeto=0.;
+	cout << "input factor for veto" << endl;
+	cin >> fracVeto;	
+	fracname.Form("%f",fracVeto);	
+	xAid.Form("%d",xidA);
+	xBid.Form("%d",xidB);
+	yAid.Form("%d",yidA);
+	yBid.Form("%d",yidB);
+	zAid.Form("%d",zidA);
+	zBid.Form("%d",zidB);
+	TString rootid=Aname+xAid+"-"+yAid+"-"+zAid+"-"+Bname+xBid+"-"+yBid+"-"+zBid+"-"+fracname;
+	
+	/*create root file to hold spectrum*/
+	TString rootap=".root";
+	TString analysisfile;
+	analysisfile.Form ("%s",filename);
+	TFile* f=new TFile (analysisfile+"-"+rootid+rootap,"recreate");
+	
+	/*record picked event number for future analysis purpose*/
+	ofstream foutevent;
+	foutevent.open (xAid+"-"+yAid+"-"+zAid+"-"+Bname+xBid+"-"+yBid+"-"+zBid+".txt");
+
+	/*Output a csv file for graph purpose*/
+	ofstream foutdata;
+	foutdata.open (xAid+"-"+yAid+"-"+zAid+"-"+Aname+xAid+"-"+yAid+"-"+zAid+"-"+Bname+xBid+"-"+yBid+"-"+zBid+"-"+fracname+".csv");
+	foutdata << "Event Num, Event Count, Orange A, Blue A, Green A, Orange B, Blue B, Green B, Orange A PSD, Blue A PSD, Green A PSD, Orange B PSD, Blue B PSD, Green B PSD,timingAB-Orange, timingAB-Blue, timingAB-Green, timingA-Orange. timingA-Blue, timingA-Green, timingB-Orange, timingB-Blue, timingB-Green, \n";
+	
+	int eventcount=0;
+	
+	/*create category of histogram to hold spectrum*/
+	TString energystr="energy ";
+	TString peakstr="peak ";
+	TString psdstr="psd ";
+	TH1D peakhistA[100];
+	TH1D integralhistA[100];
+	TH1D peakhistB[100];
+	TH1D integralhistB[100];
+	TH2D psdhistA[100];
+	TH2D psdhistB[100];
+    TH2D psdhistAB[100];
+	TString titleA=" A";
+	TString titleB=" B";
+	int xid=0;
+	int yid=0;
+	for (int i=0; i<100; i++)
+	{
+		TString xidname,yidname;
+		xid=i%10;
+		yid=i/10;
+		xidname.Form ("%d",xid);
+		yidname.Form ("%d",yid);
+		TString titlename = yidname+" "+xidname;
+		TString histname = yidname+" "+xidname;
+		peakhistA[i]=TH1D(peakstr+histname+titleA,titlename,2000,0,2000);
+		integralhistA[i]=TH1D(energystr+histname+titleA,titlename,6000,0,350000); // needs to be modified the size and maximum
+		psdhistA[i]=TH2D(psdstr+histname+titleA,titlename,1500,0,350000,100,0,1);
+		peakhistB[i]=TH1D(peakstr+histname+titleB,titlename,2000,0,2000);
+		integralhistB[i]=TH1D(energystr+histname+titleB,titlename,6000,0,350000); // needs to be modified the size and maximum
+		psdhistB[i]=TH2D(psdstr+histname+titleB,titlename,1500,0,350000,100,0,1);
+		psdhistAB[i]=TH2D(psdstr+histname+titleA+titleB,titlename,1500,0,350000,100,0,1);
+	}
+
+	TH1D *timeA12 = new TH1D("timeA12", "timeA-1-2-dif", 100, -50, 50);
+	TH1D *timeA13 = new TH1D("timeA13", "timeA-1-3-dif", 100, -50, 50);
+	TH1D *timeA23 = new TH1D("timeA23", "timeA-2-3-dif", 100, -50, 50);
+	TH1D *timeB12 = new TH1D("timeB12", "timeB-1-2-dif", 100, -50, 50);
+	TH1D *timeB13 = new TH1D("timeB13", "timeB-1-3-dif", 100, -50, 50);
+	TH1D *timeB23 = new TH1D("timeB23", "timeB-2-3-dif", 100, -50, 50);
+	TH1D *timeABtrig= new TH1D("timeAB", "timeAB-dif", 3000, -10, 30000);
+
+	int TimeAFace1, TimeAFace2, TimeAFace3, TimeBFace1, TimeBFace2,TimeBFace3, TimeABFace;
+				
+
+	int histTag=0; // based on the x and y value to define the hist number
+
+	bool vetoA=true;
+	bool vetoB=true;
+	bool vetoApick=true;
+	bool vetoBpick=true;
+	
+	for (int i=0; i<n; i++)
+	{
+		/*currently disable the threshold ability, should be added when needed*/
+		//vetoApick=pick(lowthreshold,highthreshold,energyA,i);
+		//vetoBpick=pick(lowthreshold,highthreshold,energyB,i);
+
+		if (true)
+		{
+			//cout << eventID[i] << "A 3 data"<< endl;
+			vetoA=cubeveto(energyA, xidA,yidA,zidA, 1, i);
+			//cout << eventID[i] << "B 3 data"<< endl;
+			vetoB=cubeveto(energyB, xidB,yidB,zidB, fracVeto, i);
+			//cout << vetoA << "\t" << vetoB << endl;
+			if (!vetoA && !vetoB)
+			{
+				//foutevent << eventID[i] << endl;
+				eventcount++;		
+				foutdata << eventID[i] << "," << i << "," << energyA[yidA+i*10][xidA] << "," <<  energyA[yidA+i*10][zidA+5] << "," << energyA[5+i*10+zidA][xidA] << "," << energyB[yidB+i*10][xidB] << "," <<  energyB[yidB+i*10][zidB+5] << "," << energyB[5+i*10+zidB][xidB] << "," << psdA[yidA+i*10][xidA] << "," <<  psdA[yidA+i*10][zidA+5] << "," << psdA[5+i*10+zidA][xidA] << "," << psdB[yidB+i*10][xidB] << "," <<  psdB[yidB+i*10][zidB+5] << "," << psdB[5+i*10+zidB][xidB]<<timingAB[yidB+i*10][xidB] << "," << timingAB[yidB+i*10][5+zidB] << "," << timingAB[5+zidB+i*10][xidB] << "," << timingA[yidA+i*10][xidA] << "," << timingA[yidA+i*10][5+zidA] << "," << timingA[5+zidA+i*10][xidA] << "," << timingB[yidB+i*10][xidB] << "," << timingB[yidB+i*10][5+zidB] << "," << timingB[5+zidB+i*10][xidB] << "," << "\n";
+				for(int j=0;j<10;j++)
+				{
+					for(int k=0; k<10; k++)
+					{
+						if (j<5||k<5)
+						{
+							histTag=j*10+k;								
+							peakhistA[histTag].Fill(peakA[j+10*i][k]);
+							integralhistA[histTag].Fill(energyA[j+10*i][k]);
+							psdhistA[histTag].Fill(energyA[j+10*i][k],psdA[j+10*i][k]);
+							peakhistB[histTag].Fill(peakB[j+10*i][k]);
+							integralhistB[histTag].Fill(energyB[j+10*i][k]);
+							psdhistB[histTag].Fill(energyB[j+10*i][k],psdB[j+10*i][k]);
+							psdhistAB[histTag].Fill(energyB[j+10*i][k],psdB[j+10*i][k]);
+							psdhistAB[histTag].Fill(energyA[j+10*i][k],psdA[j+10*i][k]);
+						
+						}
+					}
+				}
+
+				if (MapOption=="y")
+				{			
+					TString eventchar;						
+					eventchar.Form ("%d",eventID[i]);	
+					TH2D* temp2dhisA=new TH2D("eventA "+eventchar, eventchar+"Energy mapping",20,0,10,20,0,10);
+					for(int j=0;j<10;j++)
+					{
+						for(int k=0; k<10; k++)
+						{
+							if (j<5 || k<5)
+							{
+								for (int l=0;l<energyA[j+i*10][k];l++)
+								{
+									temp2dhisA->Fill(k,9-j);						
+								}
+							}
+						}
+					}
+					TH2D* temp2dhisB=new TH2D("eventB "+eventchar, eventchar+"Energy mapping",20,0,10,20,0,10);
+					for(int j=0;j<10;j++)
+					{
+						for(int k=0; k<10; k++)
+						{
+							if (j<5 || k<5)
+							{
+								for (int l=0;l<energyB[j+i*10][k];l++)
+								{
+									temp2dhisB->Fill(k,9-j);						
+								}
+							}
+						}
+					}
+					//cout << "wrtie the 2D map" << endl;
+					temp2dhisA->Write();
+					temp2dhisB->Write();
+					delete temp2dhisA;
+					delete temp2dhisB;
+				}
+
+				TimeAFace1=timingA[yidA+i*10][xidA]; 
+				TimeAFace2=timingA[yidA+i*10][5+zidA];
+				TimeAFace3=timingA[5+zidA+i*10][xidA];
+				TimeBFace1=timingB[yidB+i*10][xidB];
+				TimeBFace2=timingB[yidB+i*10][5+zidB];
+				TimeBFace3=timingB[5+zidB+i*10][xidB];
+				if(faceid==1)
+					TimeABFace=timingAB[yidA+10*i][xidA];
+				else if (faceid==2)
+					TimeABFace=timingAB[yidA+i*10][5+zidA];
+				else
+					TimeABFace=timingAB[5+zidA+i*10][xidA];
+				timeA12->Fill(TimeAFace1-TimeAFace2);
+				timeA13->Fill(TimeAFace1-TimeAFace3);
+				timeA23->Fill(TimeAFace2-TimeAFace3);
+				timeB12->Fill(TimeBFace1-TimeBFace2);
+				timeB13->Fill(TimeBFace1-TimeBFace3);
+				timeB23->Fill(TimeBFace2-TimeBFace3);
+				timeABtrig->Fill(TimeABFace);
+			}
+		}
+	}
+	cout << "total "<< eventcount << "\t events being found" << endl;
+	foutdata.clear();
+	foutdata.close();
+	foutevent.clear();
+	foutevent.close();
+	f->Write();
+	f->Close();
+    return 0;
+}
+
+int BEvent (char* filename, vector<int> eventID, int n, Matrix &energyA, Matrix &energyB, Matrix &peakA, Matrix &peakB, Matrix &timingA, Matrix &timingB, MatrixPsd &psdA, MatrixPsd &psdB, Matrix &timingAB)
+{
+	cout << "function B pick" << endl;
+	int xidA, yidA, zidA, xidB, yidB, zidB;
+	string MapOption;
+	int facepick;
+	double fracVeto=0.;
+	TString xAid, yAid, zAid, xBid, yBid, zBid,Aname, Bname, fracname;
+	Aname="Event-A-";
+	Bname="Event-B-";
+    cout << "input factor for veto" << endl;
+	cin >> fracVeto;
+	cout << "input xid for B event" << endl;
+	cin >> xidB;
+	cout << "input yid for B event" << endl;
+	cin >> yidB;
+	cout << "input zid for B event" << endl;
+	cin >> zidB;
+	cout << "Do you need 2D events mapping? (y/n)" << endl;
+	cin >> MapOption;
+	fracname.Form("%f",fracVeto);
+	xAid.Form("%d",xidA);
+	xBid.Form("%d",xidB);
+	yAid.Form("%d",yidA);
+	yBid.Form("%d",yidB);
+	zAid.Form("%d",zidA);
+	zBid.Form("%d",zidB);
+	TString rootid=Bname+xBid+"-"+yBid+"-"+zBid+"-"+fracname;
+	/*create root file to hold spectrum*/
+	TString rootap=".root";
+	TString analysisfile;
+	analysisfile.Form ("%s",filename);
+	TFile* f=new TFile (analysisfile+"-"+rootid+rootap,"recreate");
+	ofstream foutevent;
+	foutevent.open (xAid+"-"+yAid+"-"+zAid+"-"+Bname+xBid+"-"+yBid+"-"+zBid+".txt");
+	ofstream foutdata;
+	foutdata.open (xAid+"-"+yAid+"-"+zAid+"-"+Bname+xBid+"-"+yBid+"-"+zBid+".csv");
+	foutdata << "Event Num, Event Count, Orange A, Blue A, Green A, Orange B, Blue B, Green B, Orange A PSD, Blue A PSD, Green A PSD, Orange B PSD, Blue B PSD, Green B PSD,timingAB-Orange, timingAB-Blue, timingAB-Green, timingA-Orange. timingA-Blue, timingA-Green, timingB-Orange, timingB-Blue, timingB-Green, \n";
+	int eventcount=0;
+	/*create category of histogram to hold spectrum*/
+	TString energystr="energy ";
+	TString peakstr="peak ";
+	TString psdstr="psd ";
+	TH1D peakhistA[100];
+	TH1D integralhistA[100];
+	TH1D peakhistB[100];
+	TH1D integralhistB[100];
+	TH2D psdhistA[100];
+	TH2D psdhistB[100];
+	TH2D psdhistAB[100];
+	TString titleA=" A";
+	TString titleB=" B";
+	int xid=0;
+	int yid=0;
+	for (int i=0; i<100; i++)
+	{
+		TString xidname,yidname;
+		xid=i%10;
+		yid=i/10;
+		xidname.Form ("%d",xid);
+		yidname.Form ("%d",yid);
+		TString titlename = yidname+" "+xidname;
+		TString histname = yidname+" "+xidname;
+		peakhistA[i]=TH1D(peakstr+histname+titleA,titlename,2000,0,2000);
+		integralhistA[i]=TH1D(energystr+histname+titleA,titlename,6000,0,350000); // needs to be modified the size and maximum
+		psdhistA[i]=TH2D(psdstr+histname+titleA,titlename,1500,0,350000,100,0,1);
+		peakhistB[i]=TH1D(peakstr+histname+titleB,titlename,2000,0,2000);
+		integralhistB[i]=TH1D(energystr+histname+titleB,titlename,6000,0,350000); // needs to be modified the size and maximum
+		psdhistB[i]=TH2D(psdstr+histname+titleB,titlename,1500,0,350000,100,0,1);
+    	psdhistAB[i]=TH2D(psdstr+histname+titleA+titleB,titlename,1500,0,350000,100,0,1);
+	}
+	int histTag=0;
+	bool vetoA=true;
+	bool vetoB=true;
+	bool vetoApick=true;
+	bool vetoBpick=true;
+	for (int i=0; i<n; i++)
+	{
+		//vetoApick=pick(lowthreshold,highthreshold,energyA,i);
+		//vetoBpick=pick(lowthreshold,highthreshold,energyB,i);
+		if (true)
+		{
+			//cout << eventID[i] << "A 3 data"<< endl;
+			//vetoA=cubeveto(energyA, xidA,yidA,zidA,i);
+			//cout << eventID[i] << "B 3 data"<< endl;
+			vetoB=cubeveto(energyB, xidB,yidB,zidB,fracVeto,i);
+			//cout << vetoA << "\t" << vetoB << endl;
+			if (!vetoB)
+			{
+				//foutevent << eventID[i] << endl;
+				eventcount++;		
+				foutdata << eventID[i] << "," << i << "," << energyA[yidA+i*10][xidA] << "," <<  energyA[yidA+i*10][zidA+5] << "," << energyA[5+i*10+zidA][xidA] << "," << energyB[yidB+i*10][xidB] << "," <<  energyB[yidB+i*10][zidB+5] << "," << energyB[5+i*10+zidB][xidB] << "," << psdA[yidA+i*10][xidA] << "," <<  psdA[yidA+i*10][zidA+5] << "," << psdA[5+i*10+zidA][xidA] << "," << psdB[yidB+i*10][xidB] << "," <<  psdB[yidB+i*10][zidB+5] << "," << psdB[5+i*10+zidB][xidB]<<timingAB[yidB+i*10][xidB] << "," << timingAB[yidB+i*10][5+zidB] << "," << timingAB[5+zidB+i*10][xidB] << "," << timingA[yidA+i*10][xidA] << "," << timingA[yidA+i*10][5+zidA] << "," << timingA[5+zidA+i*10][xidA] << "," << timingB[yidB+i*10][xidB] << "," << timingB[yidB+i*10][5+zidB] << "," << timingB[5+zidB+i*10][xidB] << "," << "\n";
+				for(int j=0;j<10;j++)
+				{
+					for(int k=0; k<10; k++)
+					{
+						if (j<5||k<5)
+						{
+							histTag=j*10+k;								
+							peakhistA[histTag].Fill(peakA[j+10*i][k]);
+							integralhistA[histTag].Fill(energyA[j+10*i][k]);
+							psdhistA[histTag].Fill(energyA[j+10*i][k],psdA[j+10*i][k]);
+							peakhistB[histTag].Fill(peakB[j+10*i][k]);
+							integralhistB[histTag].Fill(energyB[j+10*i][k]);
+							psdhistB[histTag].Fill(energyB[j+10*i][k],psdB[j+10*i][k]);
+							psdhistAB[histTag].Fill(energyB[j+10*i][k],psdB[j+10*i][k]);
+							psdhistAB[histTag].Fill(energyA[j+10*i][k],psdA[j+10*i][k]);
+						
+						}
+					}
+				}
+				if (MapOption=="y")
+				{			
+					TString eventchar;						
+					eventchar.Form ("%d",eventID[i]);	
+					TH2D* temp2dhisA=new TH2D("eventA "+eventchar, eventchar+"Energy mapping",20,0,10,20,0,10);
+					for(int j=0;j<10;j++)
+					{
+						for(int k=0; k<10; k++)
+						{
+							if (j<5 || k<5)
+							{
+								for (int l=0;l<energyA[j+i*10][k];l++)
+								{
+									temp2dhisA->Fill(k,9-j);						
+								}
+							}
+						}
+					}
+					TH2D* temp2dhisB=new TH2D("eventB "+eventchar, eventchar+"Energy mapping",20,0,10,20,0,10);
+					for(int j=0;j<10;j++)
+					{
+						for(int k=0; k<10; k++)
+						{
+							if (j<5 || k<5)
+							{
+								for (int l=0;l<energyB[j+i*10][k];l++)
+								{
+									temp2dhisB->Fill(k,9-j);						
+								}
+							}
+						}
+					}
+					//cout << "wrtie the 2D map" << endl;
+					temp2dhisA->Write();
+					temp2dhisB->Write();
+					delete temp2dhisA;
+					delete temp2dhisB;
+				}
+			}
+		}
+	}
+	cout << "total "<< eventcount << "\t events being found" << endl;
+	foutdata.clear();
+	foutdata.close();
+	foutevent.clear();
+	foutevent.close();
+	f->Write();
+	f->Close();
+	return 0;
+}
+
+int ABtEvent (char* filename, vector<int> eventID, int n, Matrix &energyA, Matrix &energyB, Matrix &peakA, Matrix &peakB, Matrix &timingA, Matrix &timingB, MatrixPsd &psdA, MatrixPsd &psdB, Matrix &timingAB)
+{
+	cout << "function AB pick" << endl;
+	int xidA, yidA, zidA, xidB, yidB, zidB,faceid;
+	string MapOption;
+	TString xAid, yAid, zAid, xBid, yBid, zBid, Aname, Bname, fracname;
+	Aname="Event-AT-";
+	Bname="Event-BT-";
+	cout << "input xid for A event" << endl;
+	cin >> xidA;
+	cout << "input yid for A event" << endl;
+	cin >> yidA;
+	cout << "input zid for A event" << endl;
+	cin >> zidA;
+	cout << "input xid for B event" << endl;
+	cin >> xidB;
+	cout << "input yid for B event" << endl;
+	cin >> yidB;
+	cout << "input zid for B event" << endl;
+	cin >> zidB;
+	cout << "Input the face pmt being trigged" << endl;
+	cin >> faceid;
+	cout << "Do you need 2D events mapping? (y/n)" << endl;
+	cin >> MapOption;
+	int facepick;
+	double fracVeto=0.;
+	cout << "input factor for veto" << endl;
+	cin >> fracVeto;	
+	fracname.Form("%f",fracVeto);	
+	xAid.Form("%d",xidA);
+	xBid.Form("%d",xidB);
+	yAid.Form("%d",yidA);
+	yBid.Form("%d",yidB);
+	zAid.Form("%d",zidA);
+	zBid.Form("%d",zidB);
+	TString rootid=Aname+xAid+"-"+yAid+"-"+zAid+"-"+Bname+xBid+"-"+yBid+"-"+zBid+"-"+fracname;
+	
+	/*create root file to hold spectrum*/
+	TString rootap=".root";
+	TString analysisfile;
+	analysisfile.Form ("%s",filename);
+	TFile* f=new TFile (analysisfile+"-"+rootid+rootap,"recreate");
+	
+	/*record picked event number for future analysis purpose*/
+	ofstream foutevent;
+	foutevent.open (xAid+"-"+yAid+"-"+zAid+"-"+Bname+xBid+"-"+yBid+"-"+zBid+".txt");
+
+	/*Output a csv file for graph purpose*/
+	ofstream foutdata;
+	foutdata.open (xAid+"-"+yAid+"-"+zAid+"-"+Aname+xAid+"-"+yAid+"-"+zAid+"-"+Bname+xBid+"-"+yBid+"-"+zBid+"-"+fracname+".csv");
+	foutdata << "Event Num, Event Count, Orange A, Blue A, Green A, Orange B, Blue B, Green B, Orange A PSD, Blue A PSD, Green A PSD, Orange B PSD, Blue B PSD, Green B PSD,timingAB-Orange, timingAB-Blue, timingAB-Green, timingA-Orange. timingA-Blue, timingA-Green, timingB-Orange, timingB-Blue, timingB-Green, \n";
+	
+	int eventcount=0;
+	
+	/*create category of histogram to hold spectrum*/
+	TString energystr="energy ";
+	TString peakstr="peak ";
+	TString psdstr="psd ";
+	TH1D peakhistA[100];
+	TH1D integralhistA[100];
+	TH1D peakhistB[100];
+	TH1D integralhistB[100];
+	TH2D psdhistA[100];
+	TH2D psdhistB[100];
+    TH2D psdhistAB[100];
+	TString titleA=" A";
+	TString titleB=" B";
+	int xid=0;
+	int yid=0;
+	for (int i=0; i<100; i++)
+	{
+		TString xidname,yidname;
+		xid=i%10;
+		yid=i/10;
+		xidname.Form ("%d",xid);
+		yidname.Form ("%d",yid);
+		TString titlename = yidname+" "+xidname;
+		TString histname = yidname+" "+xidname;
+		peakhistA[i]=TH1D(peakstr+histname+titleA,titlename,2000,0,2000);
+		integralhistA[i]=TH1D(energystr+histname+titleA,titlename,6000,0,350000); // needs to be modified the size and maximum
+		psdhistA[i]=TH2D(psdstr+histname+titleA,titlename,1500,0,350000,100,0,1);
+		peakhistB[i]=TH1D(peakstr+histname+titleB,titlename,2000,0,2000);
+		integralhistB[i]=TH1D(energystr+histname+titleB,titlename,6000,0,350000); // needs to be modified the size and maximum
+		psdhistB[i]=TH2D(psdstr+histname+titleB,titlename,1500,0,350000,100,0,1);
+		psdhistAB[i]=TH2D(psdstr+histname+titleA+titleB,titlename,1500,0,350000,100,0,1);
+	}
+
+	TH1D *timeA12 = new TH1D("timeA12", "timeA-1-2-dif", 100, -50, 50);
+	TH1D *timeA13 = new TH1D("timeA13", "timeA-1-3-dif", 100, -50, 50);
+	TH1D *timeA23 = new TH1D("timeA23", "timeA-2-3-dif", 100, -50, 50);
+	TH1D *timeB12 = new TH1D("timeB12", "timeB-1-2-dif", 100, -50, 50);
+	TH1D *timeB13 = new TH1D("timeB13", "timeB-1-3-dif", 100, -50, 50);
+	TH1D *timeB23 = new TH1D("timeB23", "timeB-2-3-dif", 100, -50, 50);
+	TH1D *timeABtrig= new TH1D("timeAB", "timeAB-dif", 3000, -10, 30000);
+
+	int TimeAFace1, TimeAFace2, TimeAFace3, TimeBFace1, TimeBFace2,TimeBFace3, TimeABFace;
+				
+
+	int histTag=0; // based on the x and y value to define the hist number
+
+	Matrix energyAtm(n*10,Row(10));	
+	Matrix energyBtm(n*10,Row(10));
+	int xtrigid, ytrigid;
+	cout << "input xid for trigger event" << endl;
+	cin >> xtrigid;
+	cout << "input yid for trigger event" << endl;
+	cin >> ytrigid;
+	for (int i=0; i<n; i++)
+	{
+		for (int j=0; j<10; j++)
+		{
+			for (int k=0; k<10; k++)
+			{
+				if (j!=ytrigid || k!=xtrigid)
+				{		
+					if ( abs(timingA[j+i*10][k]-timingA[ytrigid+i*10][xtrigid])>20)
+						energyAtm[j+i*10][k]=0;
+					else
+						energyAtm[j+i*10][k]=energyA[j+i*10][k];
+					if ( abs(timingB[j+i*10][k]-timingB[ytrigid+i*10][xtrigid])>20)
+						energyBtm[j+i*10][k]=0;
+					else
+						energyBtm[j+i*10][k]=energyB[j+i*10][k];
+				}
+				else
+				{
+    				energyAtm[j+i*10][k]=energyA[j+i*10][k];
+   					energyBtm[j+i*10][k]=energyB[j+i*10][k];
+				}
+			}
+		}
+	} 
+        
+
+	bool vetoA=true;
+	bool vetoB=true;
+	bool vetoApick=true;
+	bool vetoBpick=true;
+	
+	for (int i=0; i<n; i++)
+	{
+		/*currently disable the threshold ability, should be added when needed*/
+		//vetoApick=pick(lowthreshold,highthreshold,energyA,i);
+		//vetoBpick=pick(lowthreshold,highthreshold,energyB,i);
+
+		if (true)
+		{
+			//cout << eventID[i] << "A 3 data"<< endl;
+			vetoA=cubeveto(energyA, xidA,yidA,zidA, 1, i);
+			//cout << eventID[i] << "B 3 data"<< endl;
+			vetoB=cubeveto(energyB, xidB,yidB,zidB, fracVeto, i);
+			//cout << vetoA << "\t" << vetoB << endl;
+			if (!vetoA && !vetoB)
+			{
+				//foutevent << eventID[i] << endl;
+				eventcount++;		
+				foutdata << eventID[i] << "," << i << "," << energyA[yidA+i*10][xidA] << "," <<  energyA[yidA+i*10][zidA+5] << "," << energyA[5+i*10+zidA][xidA] << "," << energyB[yidB+i*10][xidB] << "," <<  energyB[yidB+i*10][zidB+5] << "," << energyB[5+i*10+zidB][xidB] << "," << psdA[yidA+i*10][xidA] << "," <<  psdA[yidA+i*10][zidA+5] << "," << psdA[5+i*10+zidA][xidA] << "," << psdB[yidB+i*10][xidB] << "," <<  psdB[yidB+i*10][zidB+5] << "," << psdB[5+i*10+zidB][xidB]<<timingAB[yidB+i*10][xidB] << "," << timingAB[yidB+i*10][5+zidB] << "," << timingAB[5+zidB+i*10][xidB] << "," << timingA[yidA+i*10][xidA] << "," << timingA[yidA+i*10][5+zidA] << "," << timingA[5+zidA+i*10][xidA] << "," << timingB[yidB+i*10][xidB] << "," << timingB[yidB+i*10][5+zidB] << "," << timingB[5+zidB+i*10][xidB] << "," << "\n";
+				for(int j=0;j<10;j++)
+				{
+					for(int k=0; k<10; k++)
+					{
+						if (j<5||k<5)
+						{
+							histTag=j*10+k;								
+							peakhistA[histTag].Fill(peakA[j+10*i][k]);
+							integralhistA[histTag].Fill(energyA[j+10*i][k]);
+							psdhistA[histTag].Fill(energyA[j+10*i][k],psdA[j+10*i][k]);
+							peakhistB[histTag].Fill(peakB[j+10*i][k]);
+							integralhistB[histTag].Fill(energyB[j+10*i][k]);
+							psdhistB[histTag].Fill(energyB[j+10*i][k],psdB[j+10*i][k]);
+							psdhistAB[histTag].Fill(energyB[j+10*i][k],psdB[j+10*i][k]);
+							psdhistAB[histTag].Fill(energyA[j+10*i][k],psdA[j+10*i][k]);
+						
+						}
+					}
+				}
+
+				if (MapOption=="y")
+				{			
+					TString eventchar;						
+					eventchar.Form ("%d",eventID[i]);	
+					TH2D* temp2dhisA=new TH2D("eventA "+eventchar, eventchar+"Energy mapping",20,0,10,20,0,10);
+					for(int j=0;j<10;j++)
+					{
+						for(int k=0; k<10; k++)
+						{
+							if (j<5 || k<5)
+							{
+								for (int l=0;l<energyA[j+i*10][k];l++)
+								{
+									temp2dhisA->Fill(k,9-j);						
+								}
+							}
+						}
+					}
+					TH2D* temp2dhisB=new TH2D("eventB "+eventchar, eventchar+"Energy mapping",20,0,10,20,0,10);
+					for(int j=0;j<10;j++)
+					{
+						for(int k=0; k<10; k++)
+						{
+							if (j<5 || k<5)
+							{
+								for (int l=0;l<energyB[j+i*10][k];l++)
+								{
+									temp2dhisB->Fill(k,9-j);						
+								}
+							}
+						}
+					}
+					//cout << "wrtie the 2D map" << endl;
+					temp2dhisA->Write();
+					temp2dhisB->Write();
+					delete temp2dhisA;
+					delete temp2dhisB;
+				}
+
+				TimeAFace1=timingA[yidA+i*10][xidA]; 
+				TimeAFace2=timingA[yidA+i*10][5+zidA];
+				TimeAFace3=timingA[5+zidA+i*10][xidA];
+				TimeBFace1=timingB[yidB+i*10][xidB];
+				TimeBFace2=timingB[yidB+i*10][5+zidB];
+				TimeBFace3=timingB[5+zidB+i*10][xidB];
+				if(faceid==1)
+					TimeABFace=timingAB[yidA+10*i][xidA];
+				else if (faceid==2)
+					TimeABFace=timingAB[yidA+i*10][5+zidA];
+				else
+					TimeABFace=timingAB[5+zidA+i*10][xidA];
+				timeA12->Fill(TimeAFace1-TimeAFace2);
+				timeA13->Fill(TimeAFace1-TimeAFace3);
+				timeA23->Fill(TimeAFace2-TimeAFace3);
+				timeB12->Fill(TimeBFace1-TimeBFace2);
+				timeB13->Fill(TimeBFace1-TimeBFace3);
+				timeB23->Fill(TimeBFace2-TimeBFace3);
+				timeABtrig->Fill(TimeABFace);
+			}
+		}
+	}
+	cout << "total "<< eventcount << "\t events being found" << endl;
+	foutdata.clear();
+	foutdata.close();
+	foutevent.clear();
+	foutevent.close();
+	f->Write();
+	f->Close();
+    return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+	/*mapping function*/
+	/*if (option=="Event Energy mapping " || option=="m")
+	{
+		cout << "function mapping pick" << endl;		
+	
+		TString rootap=".root";
+		TString analysisfile;
+		analysisfile.Form ("%s",argv[1]);
+		TFile* f=new TFile (analysisfile+"-energy-map"+rootap,"recreate");
+		
+		vector<int> eventIDplot;
+		int eventid=0;
+		string eventNew;
+		do
+		{
+			cout<<"input the event you need to map"<<endl;
+			cin >> eventid;
+			eventIDplot.push_back(eventid);
+			cout << "Do you need input another channel to be plot (y/n)" << endl;
+			cin >> eventNew;
+		} while (eventNew=='y');
+
+		bool eventcheck=false;
+		for (int i=0; i<n; i++)
+		{	
+			eventcheck=false;			
+			for (int j=0; j<eventIDplot.size(); j++)
+			{
+				if (eventID[i]==eventIDplot[j])
+					eventcheck=true;
+			}
+			if (eventcheck)
+			{
+				
+				TString eventchar;						
+				eventchar.Form ("%d",eventID[i]);	
+				TH2D* temp2dhisA1=new TH2D("eventA1 "+eventchar, eventchar+"Energy mapping",10,0,5,10,0,5);
+				TH2D* temp2dhisB1=new TH2D("eventB1 "+eventchar, eventchar+"Energy mapping",10,0,5,10,0,5);
+				TH2D* temp2dhisA2=new TH2D("eventA2 "+eventchar, eventchar+"Energy mapping",10,0,5,10,0,5);
+				TH2D* temp2dhisB2=new TH2D("eventB2 "+eventchar, eventchar+"Energy mapping",10,0,5,10,0,5);
+				TH2D* temp2dhisA3=new TH2D("eventA3 "+eventchar, eventchar+"Energy mapping",10,0,5,10,0,5);
+				TH2D* temp2dhisB3=new TH2D("eventB3 "+eventchar, eventchar+"Energy mapping",10,0,5,10,0,5);
+				for(int j=0;j<5;j++)
+				{
+					for(int k=0; k<5; k++)
+					{
+						{
+							for (int l=0;l<energyA[j+i*10][k];l++)
+							{
+								temp2dhisA1->Fill(k,4-j);						
+							}
+							for (int l=0;l<energyB[j+i*10][k];l++)
+							{
+								temp2dhisB1->Fill(k,4-j);						
+							}
+						}
+					}
+				}
+				for(int j=0;j<5;j++)
+				{
+					for(int k=5; k<10; k++)
+					{
+						{
+							for (int l=0;l<energyA[j+i*10][k];l++)
+							{
+								temp2dhisA2->Fill(k-5,4-j);						
+							}
+							for (int l=0;l<energyB[j+i*10][k];l++)
+							{
+								temp2dhisB2->Fill(k-5,4-j);						
+							}
+						}
+					}
+				}
+				for(int j=5;j<10;j++)
+				{
+					for(int k=0; k<5; k++)
+					{
+						{
+							for (int l=0;l<energyA[j+i*10][k];l++)
+							{
+								temp2dhisA3->Fill(k,9-j);						
+							}
+							for (int l=0;l<energyB[j+i*10][k];l++)
+							{
+								temp2dhisB3->Fill(k,9-j);						
+							}
+						}
+					}
+				}				
+			
+
+				cout << "wrtie the 2D map" << endl;
+				temp2dhisA1->Write();
+				temp2dhisB1->Write();
+				temp2dhisA2->Write();
+				temp2dhisB2->Write();
+				temp2dhisA3->Write();
+				temp2dhisB3->Write();
+				delete temp2dhisA1;
+				delete temp2dhisB1;
+				delete temp2dhisA2;
+				delete temp2dhisB2;
+				delete temp2dhisA3;
+				delete temp2dhisB3;
+			
+			}
+		}
+		f->Write();
+		f->Close();
+	}*/
+
+
+
 
 #endif
