@@ -23,14 +23,14 @@ int main()
                 {                
                         fout << "scrod2subtract exp_0043_run_0" <<minfile+i<<".dat "<<pedfile << endl;
                         fout << "scrod2glenn exp_0043_run_0"<<minfile+i<<"_subtracted.dat"<<endl;
-                       // fout << "rm exp_0043_run_0"<<minfile+i<<".dat"<<endl;
+                        fout << "rm exp_0043_run_0"<<minfile+i<<".dat"<<endl;
                 }
                 
                 else
                 {
                         fout << "scrod2subtract exp_0043_run_" <<minfile+i<<".dat "<<pedfile << endl;
                         fout << "scrod2glenn exp_0043_run_"<<minfile+i<<"_subtracted.dat"<<endl;
-                        //fout << "rm exp_0043_run_"<<minfile+i<<".dat"<<endl;
+                        fout << "rm exp_0043_run_"<<minfile+i<<".dat"<<endl;
              
                 }
                 

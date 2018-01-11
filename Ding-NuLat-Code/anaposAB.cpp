@@ -325,7 +325,7 @@ int main(int argc, char* argv[])
 	/*choice of using function*/
 	do
 	{
-		cout<<"input the function you want to call : AB(AB-Event), B (B-Event), ABT (ABT-Event)"<<endl;
+		cout<<"input the function you want to call : AB(AB-Event), B (B-Event), ABT (ABT-Event), one (One-Event), Radon(Radon calibration)"<<endl;
 		cin >> option_test;
 		if (option_test=="AB")
 			ABEvent (argv[1], eventID, n, energyA, energyB, peakA, peakB, timingA, timingB, psdA, psdB, timingAB);
@@ -333,6 +333,11 @@ int main(int argc, char* argv[])
 			BEvent (argv[1], eventID, n, energyA, energyB, peakA, peakB, timingA, timingB, psdA, psdB, timingAB);
 		else if (option_test=="ABT")
 			ABtEvent (argv[1], eventID, n, energyA, energyB, peakA, peakB, timingA, timingB, psdA, psdB, timingAB);
+                else if (option_test=="one")
+                        OneEvent (argv[1], eventID, n, energyA, energyB, peakA, peakB, timingA, timingB, psdA, psdB, timingAB);
+		else if (option_test=="Radon")
+                        RadonCalibration (argv[1], eventID, n, energyA, energyB, peakA, peakB, timingA, timingB, psdA, psdB, timingAB);
+
 
 		cout << "Do you need to do another analysis (y/n)" << endl;
 		cin >> analysis_new ;

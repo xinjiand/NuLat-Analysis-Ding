@@ -37,6 +37,11 @@ int main(int argc, char* argv[])
 	analysisfile.Form ("%s",argv[argc-1]);
 	TFile* f=new TFile (analysisfile+"-PSD"+rootap,"recreate"); //summary root file being created, every time code being runned, file being recreated.
 	cout << "root file being created here" << endl;
+        ofstream fout;
+        ofstream foutdata;
+        string filename=argv[argc-1];
+	foutdata.open (filename+"-PSD.csv");
+	foutdata << "Event Num, push, energyA, psdA, energyB, psdB, \n";
 	
 	/* variable to hold content for each line from data*/
 	int lineMaximum=1000;
@@ -77,9 +82,9 @@ int main(int argc, char* argv[])
 	{
 		TString psdname ;
 		psdname.Form ("%d",i);
-		psdhistA[i]=TH2D(eventIDA+psdname,eventIDA+psdname,1500,0,50000,1000,-0.3,1);
-		psdhistB[i]=TH2D(eventIDB+psdname,eventIDB+psdname,1500,0,50000,1000,-0.3,1);
-		psdhist[i]=TH2D(eventID+psdname,eventID+psdname,1500,0,50000,1000,-0.3,1);
+		psdhistA[i]=TH2D(eventIDA+psdname,eventIDA+psdname,260,0,70000,50,-0.3,1.2);
+		psdhistB[i]=TH2D(eventIDB+psdname,eventIDB+psdname,260,0,70000,50,-0.3,1.2);
+		psdhist[i]=TH2D(eventID+psdname,eventID+psdname,260,0,70000,50,-0.3,1.2);
 	}
 	/*vector to hold valid analysis information, being processed event by event and clear after reasonable histogram being created and data storage each event*/	
 	vector<int> pulse;
@@ -93,8 +98,8 @@ int main(int argc, char* argv[])
 	vector<int> adjustedpulseB;
 	bool eventpick=true;
         double psdratioA, psdratioB;
-        int tailenergyA, tailenergyB;
-        int totalenergyA, totalenergyB;
+        double tailenergyA, tailenergyB;
+        double totalenergyA, totalenergyB;
         int leftzeroposA, rightzeroposA, leftzeroposB, rightzeroposB, peakposA, peakposB;   
         int threshold=10;
         int psdposA, psdposB;
@@ -173,21 +178,21 @@ int main(int argc, char* argv[])
 					{
 						/*After all the pre-process of the data, start deal with the issue from last event*/						
 						/* if event number is not the same, means new event starts here, at this point, analysis all the information analysised before for the previous event.*/
-                                                chan=tempcondition[4]*1000+tempcondition[1]*100+tempcondition[2]*10+tempcondition[1]; 
+                                                chan=tempcondition[4]*1000+tempcondition[1]*100+tempcondition[2]*10+tempcondition[3]; 
                                                               					
 						if (tempcondition[0]!=eventnumber || tempcondition[1]!=eventrow || tempcondition[2]!=eventcol || tempcondition[3]!=eventchanl || tempcondition[4]!=eventscrod) 
 						{							
                                                         chan=eventscrod*1000+eventrow*100+eventcol*10+eventchanl;							
                                                         if (chan==chantest)
 							{							
-								if (eventtest(eventnumber,eventIDpick))
-								{						
+								//if (eventtest(eventnumber,eventIDpick))
+								//{						
 									pulseA=pulseAB(pulse,0);
 									pulseB=pulseAB(pulse,1);
 									cuttedpulseA=CutShock(pulseA);					
-									adjustedpulseA=flip(cuttedpulseA);
+									adjustedpulseA=adjust(cuttedpulseA);
 									cuttedpulseB=CutShock(pulseB);					
-									adjustedpulseB=flip(cuttedpulseB);									
+									adjustedpulseB=adjust(cuttedpulseB);									
 									int *pulseyA=new int[adjustedpulseA.size()];
 									int *xaxisA=new int[adjustedpulseA.size()];
 									for (int j=0; j<adjustedpulseA.size(); j++)
@@ -236,13 +241,13 @@ int main(int argc, char* argv[])
 			                                                                break;
 		                                                                }		
 	                                                                }
-                                                                        totalenergyA=sum(adjustedpulseA,leftzeroposA,rightzeroposA);
-                                                                        totalenergyB=sum(adjustedpulseB,leftzeroposB,rightzeroposB);
+                                                                        totalenergyA=sum(adjustedpulseA,leftzeroposA,adjustedpulseA.size());
+                                                                        totalenergyB=sum(adjustedpulseB,leftzeroposB,adjustedpulseB.size());
 
 									for (int j=0; j<100; j++)
 									{
-										psdposA=peakposA+30+j*3;
-                                                                                psdposB=peakposB+30+j*3;
+										psdposA=peakposA+10+j*5;
+                                                                                psdposB=peakposB+10+j*5;
                                                                                 if (psdposA>adjustedpulseA.size())
                                                                                 psdposA=adjustedpulseA.size()-2;  
                                                                                 if (psdposB>adjustedpulseB.size())
@@ -251,7 +256,9 @@ int main(int argc, char* argv[])
 										tailenergyB=sum(adjustedpulseB,psdposB,adjustedpulseB.size());
                                                                                 psdratioA=tailenergyA/totalenergyA;
                                                                                 psdratioB=tailenergyB/totalenergyB;
-										psdhistA[j].Fill(totalenergyA,psdratioA);
+                                                                                //foutdata << "Event Num, push, energyA, psdA, energyB, psdB, \n";
+                                                                                foutdata << eventnumber << " ,"<< j << " ,"<< totalenergyA << " ,"<<psdratioA << " ,"<<totalenergyB << " ," << psdratioB << endl;  
+                                                                                psdhistA[j].Fill(totalenergyA,psdratioA);
 										psdhistB[j].Fill(totalenergyB,psdratioB);
 										psdhist[j].Fill(totalenergyA,psdratioA);
 										psdhist[j].Fill(totalenergyB,psdratioB);
@@ -263,7 +270,7 @@ int main(int argc, char* argv[])
                                                                         delete []xaxisB;                                      
                                                                         pulseA.clear();
 									pulseB.clear();
-								}
+								//}
 							}
 							pulse.clear();
 							/*new event condition being initialized here*/
@@ -287,11 +294,15 @@ int main(int argc, char* argv[])
 			}
 			countline++;
 		}
+                duration=(clock()-start)/(double) CLOCKS_PER_SEC;
+                cout << "program running time is " << duration << endl;
 		fin.clear();
 		fin.close();
 	}
         duration=(clock()-start)/(double) CLOCKS_PER_SEC;
-        cout << "program running time is " << duration << endl;           
+        cout << "program running time is " << duration << endl;
+        foutdata.clear();
+        foutdata.close();           
 	f->Write();
 	f->Close();
 	return 0;

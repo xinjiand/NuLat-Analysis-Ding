@@ -71,7 +71,7 @@ int main(int argc, char* argv[])
 	timeABfile.open (analysisname+" timeAB.txt",fstream::app);
         ofstream fcsv;
 	fcsv.open (analysisname+".csv",fstream::app);
-        fcsv << "Event Num, ChanID, energyA, energyB, peakA, peakB, timingA, timingB, timingAB, psdA, psdB, \n";
+        fcsv << "Event Num, ChanID, Trig, energyA, energyB, peakA, peakB, timingA, timingB, timingAB, psdA, psdB, \n";
 	
 	/* variable to hold content for each line from data*/
 	int lineMaximum=1000;
@@ -537,17 +537,17 @@ Edit & Run
 									timeABMatrix[yID][xID]=timeAB[j];
                                                                         /*fcsv << "Event Num, ChanID, trigstatus, energyA, energyB, peakA, peakB, timingA, timingB, timingAB, psdA, psdB, \n";
 	*/                                                              
-                                                                        trigstatus=false;                                                                        
-                                                                        for (int k=0; k<TriggeredChan.size(); k++)
-                                                                        {
-                                                                             if (TriggeredChan[k]==chan)
-                                                                             {   
-                                                                                trigstatus=true;
-                                                                                break;
-                                                                             }
-                                                                        }
-                                                                        fcsv << event[0] <<" ," << chan <<" ,"<< trigstatus << " ," << energyspecA[j] <<" ," << energyspecB[j]<<" ," << energypeakA[j]<<" ," << energypeakB[j]<<" ," << timingA[j]<<" ," << timingB[j]<<" ," << timeAB[j]<<" ," << psdanalysisA[j]<<" ," << psdanalysisB[j] <<" ," << "\n";
-	
+									trigstatus=false;                                                                        
+									for (int k=0; k<TriggeredChan.size(); k++)
+									{
+										 if (TriggeredChan[k]==chan)
+										 {   
+										    trigstatus=true;
+										    break;
+										 }
+									}
+									fcsv << event[0] <<" ," << chan <<" ,"<< trigstatus << " ," << energyspecA[j] <<" ," << energyspecB[j]<<" ," << energypeakA[j]<<" ," << energypeakB[j]<<" ," << timingA[j]<<" ," << timingB[j]<<" ," << timeAB[j]<<" ," << psdanalysisA[j]<<" ," << psdanalysisB[j] <<" ," << "\n";
+
             								if (xID<5 && yID<5)									
 									{
 										totalenergysumA+=energyspecA[j]; // totalenergy currently add whole blue face which is from 04-04
@@ -701,9 +701,9 @@ Edit & Run
 		fin.clear();
 		fin.close();
 	}
-        duration=(clock()-start)/(double) CLOCKS_PER_SEC;
-        cout << "program running time is " << duration << endl;                
-        anasummary.clear();	
+	duration=(clock()-start)/(double) CLOCKS_PER_SEC;
+	cout << "program running time is " << duration << endl;                
+	anasummary.clear();	
 	anasummary.close();
 	cubeIDfile.clear();
 	cubeIDfile.close();

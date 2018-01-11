@@ -52,7 +52,7 @@ int main(int argc, char* argv[])
 		RC: Recalibration the energy just be reasonable number (needs to modified incase the number out of range)	
 	*/
 	string option;
-	cout << " Choose which command you need : Test (t) ; Cube (c) ; " << endl;
+	cout << " Choose which command you need : Test (t) ; Cube (c) ; Energy Mapping (m)" << endl;
 	cin >> option;
 	/* open different file ready to be input
 		
@@ -505,6 +505,94 @@ int main(int argc, char* argv[])
 		cout << "total "<< eventcount << "\t events being found" << endl;
 		foutevent.clear();
 		foutevent.close();
+		f->Write();
+		f->Close();
+	}
+
+	if (option=="Event Energy mapping " || option=="m")
+	{
+		cout << "function mapping pick" << endl;		
+		/*create root file to hold spectrum*/
+		TString rootap=".root";
+		TString analysisfile;
+		analysisfile.Form ("%s",argv[1]);
+		TFile* f=new TFile (analysisfile+"-energy-map"+rootap,"recreate");
+		/*ask for event to be plot*/
+		vector<int> eventIDplot;
+		int eventid=0;
+		string eventNew;
+		do
+		{
+			cout<<"input the event you need to map"<<endl;
+			cin >> eventid;
+			eventIDplot.push_back(eventid);
+			cout << "Do you need input another channel to be plot (y/n)" << endl;
+			cin >> eventNew;
+		} while (eventNew=='y');
+
+		bool eventcheck=false;
+		for (int i=0; i<n; i++)
+		{	
+			eventcheck=false;			
+			for (int j=0; j<eventIDplot.size(); j++)
+			{
+				if (eventID[i]==eventIDplot[j])
+					eventcheck=true;
+			}
+			if (eventcheck)
+			{
+				
+				TString eventchar;						
+				eventchar.Form ("%d",eventID[i]);	
+				TH2D* temp2dhisMuon1=new TH2D("eventA1 "+eventchar, eventchar+"Energy mapping",10,0,5,10,0,5);
+				TH2D* temp2dhisMuon2=new TH2D("eventA2 "+eventchar, eventchar+"Energy mapping",10,0,5,10,0,5);
+				TH2D* temp2dhisMuon3=new TH2D("eventA3 "+eventchar, eventchar+"Energy mapping",10,0,5,10,0,5);
+				for(int j=0;j<5;j++)
+				{
+					for(int k=0; k<5; k++)
+					{
+						{
+							for (int l=0;l<energyMuon[j+i*10][k];l++)
+							{
+								temp2dhisMuon1->Fill(k,4-j);						
+							}
+						}
+					}
+				}
+				for(int j=0;j<5;j++)
+				{
+					for(int k=5; k<10; k++)
+					{
+						{
+							for (int l=0;l<energyMuon[j+i*10][k];l++)
+							{
+								temp2dhisMuon2->Fill(k-5,4-j);						
+							}
+						}
+					}
+				}
+				for(int j=5;j<10;j++)
+				{
+					for(int k=0; k<5; k++)
+					{
+						{
+							for (int l=0;l<energyMuon[j+i*10][k];l++)
+							{
+								temp2dhisMuon3->Fill(k,9-j);						
+							}
+						}
+					}
+				}				
+
+				cout << "wrtie the 2D map" << endl;
+				temp2dhisMuon1->Write();
+				temp2dhisMuon2->Write();
+				temp2dhisMuon3->Write();
+				delete temp2dhisMuon1;
+				delete temp2dhisMuon2;
+				delete temp2dhisMuon3;
+			}
+		}
 		f->Write();
 		f->Close();
 	}						
