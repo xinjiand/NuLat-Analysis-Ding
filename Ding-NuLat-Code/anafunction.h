@@ -54,6 +54,10 @@ int MapEvent (char* filename, vector<int> eventID, int n, Matrix &energyA, Matri
 int PulseCFD (vector<int>&l);
 int OneEvent (char* filename, vector<int> eventID, int n, Matrix &energyA, Matrix &energyB, Matrix &peakA, Matrix &peakB, Matrix &timingA, Matrix &timingB, MatrixPsd &psdA, MatrixPsd &psdB, Matrix &timingAB);
 int RadonCalibration (char* filename, vector<int> eventID, int n, Matrix &energyA, Matrix &energyB, Matrix &peakA, Matrix &peakB, Matrix &timingA, Matrix &timingB, MatrixPsd &psdA, MatrixPsd &psdB, Matrix &timingAB);
+int lowerCubeBound (int i);
+int upperCubeBound (int i);
+int lowerBinBound (int i, int j);
+int upperBinBound (int i, int j);
 /* function generall used for both NuLat-AB and NuLat-Muon and NuLat-PSD 
 	adjust -> flip the negative pulse into positive so when do the integral, it directly becomes positive energy valuse
 				It also readjust the base line by average the point before the pulse, treat that as baseline
@@ -431,6 +435,41 @@ int mapYIDtrig (Matrix &l , int ch)
 	}
 	return yid;
 }
+
+int lowerCubeBound (int i)
+{
+	if (i>0)
+	return i-1;
+	
+	else 
+	return 0;
+}
+
+int upperCubeBound (int i)
+{
+	if (i<4)
+	return i+1;
+	else 
+	return 4;
+}
+
+int lowerBinBound (int i, int j)
+{
+	if (i-j>0)
+	return i-j;
+	
+	else 
+	return 0;
+}
+
+int upperBinBound (int i, int j)
+{
+	if (i+j<6000)
+	return i+j;
+	else 
+	return 6000;
+}
+
 
 /*Function to be used to deal with the pulse, get useful informaiton for futher anlaysis
 	First: Call the CutShock and adjust function, this two funciton basically modified the pulse shape, cut the shock, readjust the baseline and flip the pulse
@@ -1703,6 +1742,12 @@ int RadonCalibration (char* filename, vector<int> eventID, int n, Matrix &energy
 	TFile* f=new TFile (analysisfile+rootap,"recreate");
 	
 	/*Output a csv file for graph purpose*/
+
+	ofstream foutdata;
+	foutdata.open (analysisfile+"-radon-calibration.csv");
+	foutdata << "CubeID, Orange, Blue, Green, EventCount, \n";
+	
+	
 	//ofstream foutdata;
 	//foutdata.open (xAid+"-"+yAid+"-"+zAid+"-"+Aname+xAid+"-"+yAid+"-"+zAid+"-"+Bname+xBid+"-"+yBid+"-"+zBid+"-"+fracname+".csv");
 	//foutdata << "Event Num, Event Count, Orange A, Blue A, Green A, Orange B, Blue B, Green B, Orange A PSD, Blue A PSD, Green A PSD, Orange B PSD, Blue B PSD, Green B PSD,timingAB-Orange, timingAB-Blue, timingAB-Green, timingA-Orange. timingA-Blue, timingA-Green, timingB-Orange, timingB-Blue, timingB-Green, \n";
@@ -1716,16 +1761,22 @@ int RadonCalibration (char* filename, vector<int> eventID, int n, Matrix &energy
 	TString faceidOne="Orange";
 	TString faceidTwo="Blue";
 	TString faceidThree="Green";
+	TString TypeEnergy="energy";
+	TString TypePeak="peak";
 
 	int energylowbound=0;
 	int energyhighbound=350000;
 	int bincount=6000;
 	
-	Double_t binOrange=0;
-	Double_t binBlue=0;
-	Double_t binGreen=0;
+	int binOrange=0;
+	int binBlue=0;
+	int binGreen=0;
+
+	int binOrangelow, binOrangehigh, binBluelow, binBluehigh,binGreenlow, binGreenhigh;
 	
 	int eventnumber=0;
+	int amin, amax, bmin, bmax, cmin, cmax;
+	int cubeID;
 	
 	
 	for (int a=0; a<5; a++)
@@ -1736,15 +1787,38 @@ int RadonCalibration (char* filename, vector<int> eventID, int n, Matrix &energy
 			{
 				/*a, b, c represents the cube number increment along x, y and z axis*/
 				TString CubeIdName;
-				CubeIdName.Form ("%d",a*100+b*10+c);
-				TH1D *energyOrange = new TH1D(CubeIdName+faceidOne,CubeIdName+faceidOne,6000,0,350000);
-				TH1D *energyBlue = new TH1D(CubeIdName+faceidTwo,CubeIdName+faceidTwo,6000,0,350000);
-				TH1D *energyGreen = new TH1D(CubeIdName+faceidThree,CubeIdName+faceidThree,6000,0,350000);
+				cubeID=a*100+b*10+c;
+				CubeIdName.Form ("%d",cubeID);
+				TH1D *energyOrange = new TH1D(CubeIdName+faceidOne+TypeEnergy,CubeIdName+faceidOne+TypeEnergy,6000,0,360000);
+				TH1D *energyBlue = new TH1D(CubeIdName+faceidTwo+TypeEnergy,CubeIdName+faceidTwo+TypeEnergy,6000,0,360000);
+				TH1D *energyGreen = new TH1D(CubeIdName+faceidThree+TypeEnergy,CubeIdName+faceidThree+TypeEnergy,6000,0,360000);
+				TH1D *peakOrange = new TH1D(CubeIdName+faceidOne+TypePeak,CubeIdName+faceidOne+TypePeak,2000,0,2000);
+				TH1D *peakBlue = new TH1D(CubeIdName+faceidTwo+TypePeak,CubeIdName+faceidTwo+TypePeak,2000,0,2000);
+				TH1D *peakGreen = new TH1D(CubeIdName+faceidThree+TypePeak,CubeIdName+faceidThree+TypePeak,2000,0,2000);
 				
 				for (int i=0; i<n; i++)
 				{
-					//cout << eventID[i] << "A 3 data"<< endl;
-					vetoA=cubeveto(energyA, a, b, c, 1, i);
+					//cout << eventID[i] << "A 3 data"<< endl;					
+					amin=lowerCubeBound(a);
+					amax=upperCubeBound(a);
+					bmin=lowerCubeBound(b);
+					bmax=upperCubeBound(b);
+					cmin=lowerCubeBound(c);
+					cmax=upperCubeBound(c);		
+					
+					for (int l=amin; l<amax+1; l++)
+					{
+						for (int m=bmin; m<bmax+1; m++)
+						{
+							for (int n=cmin; n<cmax+1; n++)
+							{
+								vetoA=cubeveto(energyA, l, m, n, 1, i);
+								if (vetoA==false)
+								goto EndOfA;
+							}
+						}
+					}			
+					EndOfA :
 					//cout << eventID[i] << "B 3 data"<< endl;
 					vetoB=cubeveto(energyB, a, b, c, 0.4, i);
 					//cout << vetoA << "\t" << vetoB << endl;
@@ -1754,6 +1828,9 @@ int RadonCalibration (char* filename, vector<int> eventID, int n, Matrix &energy
 						energyOrange -> Fill(energyB[b+i*10][a]);
 						energyBlue -> Fill(energyB[b+i*10][5+c]);
 						energyGreen -> Fill(energyB[5+c+i*10][a]);
+						peakOrange -> Fill(peakB[b+i*10][a]);
+						peakBlue -> Fill(peakB[b+i*10][5+c]);
+						peakGreen -> Fill(peakB[5+c+i*10][a]);
 					}	
 				}
 
@@ -1761,26 +1838,42 @@ int RadonCalibration (char* filename, vector<int> eventID, int n, Matrix &energy
 				binBlue=energyBlue->GetMaximumBin();
 				binGreen=energyGreen->GetMaximumBin();
 
-				TF1 *orangefit = new TF1("orangefit","gaus",(binOrange-50)*60,(binOrange+50)*60);
-				TF1 *bluefit = new TF1("bluefit","gaus",(binBlue-50)*60,(binBlue+50)*60);
-				TF1 *greenfit = new TF1("greenfit","gaus",(binGreen-50)*60,(binGreen+50)*60);
+				binOrangelow=lowerBinBound(binOrange, 50);
+				binOrangehigh=upperBinBound(binOrange, 50);
+				binBluelow=lowerBinBound(binBlue, 50);
+				binBluehigh=upperBinBound (binBlue, 50);
+				binGreenlow=lowerBinBound (binGreen, 50);
+				binGreenhigh=upperBinBound (binGreen, 50);
+
+				TF1 *orangefit = new TF1("orangefit","gaus",binOrangelow*60,binOrangehigh*60);
+				TF1 *bluefit = new TF1("bluefit","gaus",binBluelow*60,binBluehigh*60);
+				TF1 *greenfit = new TF1("greenfit","gaus",binGreenlow*60,binGreenhigh*60);
 				
 				energyOrange->Fit("orangefit","R && Q");
 				energyBlue->Fit("bluefit","R && Q");
 				energyGreen->Fit("greenfit","R && Q");
 							
 				cout << "cube" << a<<b<<c<<" are analyzed after this cycle." << " " << eventnumber << " event are found."<<endl;
-				cout << "Orange=" << orangefit->GetParameter(1);
-				cout << "Blue=" << bluefit->GetParameter(1);
-				cout << "Green=" << greenfit->GetParameter(1);
+				cout << "Orange=" << orangefit->GetParameter(1) << endl;
+				cout << "Blue=" << bluefit->GetParameter(1) << endl;
+				cout << "Green=" << greenfit->GetParameter(1) << endl;
+
+				//foutdata << "CubeID, Orange, Blue, Green, EventCount, \n";
+				foutdata << cubeID << "," << orangefit->GetParameter(1) << "," << bluefit->GetParameter(1) << "," <<  greenfit->GetParameter(1) << "," << eventnumber << "," << "\n";
 				
 				eventnumber=0;				
 				energyOrange->Write();
 				energyBlue->Write();
 				energyGreen->Write();
+				peakOrange->Write();
+				peakBlue->Write();
+				peakGreen->Write();
 				delete energyOrange;
 				delete energyBlue;
 				delete energyGreen;
+				delete peakOrange;
+				delete peakBlue;
+				delete peakGreen;
 				delete orangefit;
 				delete bluefit;
 				delete greenfit;				
@@ -1792,6 +1885,8 @@ int RadonCalibration (char* filename, vector<int> eventID, int n, Matrix &energy
 	//foutdata.close();
 	//foutevent.clear();
 	//foutevent.close();
+	foutdata.clear();
+	foutdata.close();
 	f->Write();
 	f->Close();
     return 0;
